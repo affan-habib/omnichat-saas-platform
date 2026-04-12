@@ -60,6 +60,6 @@ describe('Messages API', () => {
       .set('Authorization', `Bearer ${token}`);
     
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('READ');
+    expect(res.body.isRead).toBe(true);
   });
 });

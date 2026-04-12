@@ -18,7 +18,6 @@ describe('Routing Rules API', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         name: 'Test Rule',
-        triggerChannel: 'WHATSAPP',
         conditions: { contentMatch: 'urgent' },
         action: { assignToTeam: '123' },
         priority: 1
