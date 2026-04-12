@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { 
@@ -35,9 +35,20 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { conversationService, messageService, cannedService, tagService } from "@/services/api.service";
 import { useUser } from "@/context/user-context";
+import { useSocket } from "@/context/socket-context";
+import {
+  SOCKET_EVENTS,
+  joinConversation,
+  leaveConversation,
+  sendMessageViaSocket,
+  sendTypingStart,
+  sendTypingStop,
+  markConversationRead,
+} from "@/lib/socket-client";
 
 export default function InboxPage() {
   const { user, role } = useUser();
+  const { socket, isConnected } = useSocket();
   const [convs, setConvs] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('OPEN');
@@ -46,7 +57,11 @@ export default function InboxPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
   const [cannedReplies, setCannedReplies] = useState<any[]>([]);
-  
+  const [typingUsers, setTypingUsers] = useState<Record<string, { userName: string; isTyping: boolean }>>({});
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({}); // convoId → unread count
+  const typingTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const prevSelectedId = useRef<string | null>(null);
+
   const [isDispositionModalOpen, setIsDispositionModalOpen] = useState(false);
   const [selectedDisposition, setSelectedDisposition] = useState("");
   const [dispositionNote, setDispositionNote] = useState("");
@@ -128,7 +143,112 @@ export default function InboxPage() {
       }
     };
     fetchMessages();
+
+    // Join socket room for this conversation
+    joinConversation(selectedId);
+    // Mark as read when opened
+    markConversationRead(selectedId);
+    setUnreadMap(prev => ({ ...prev, [selectedId]: 0 }));
+
+    // Leave the previous conversation room
+    return () => {
+      if (prevSelectedId.current && prevSelectedId.current !== selectedId) {
+        leaveConversation(prevSelectedId.current);
+      }
+      prevSelectedId.current = selectedId;
+    };
   }, [selectedId]);
+
+  // ── Socket Event Listeners ─────────────────────────────────
+  useEffect(() => {
+    if (!socket) return;
+
+    // New message in current conversation
+    const onMessageNew = (message: any) => {
+      if (message.conversationId === selectedId) {
+        setMessages(prev => [...prev, message]);
+        // Auto-mark read if we're looking at this convo
+        markConversationRead(message.conversationId);
+      } else {
+        // Increment unread badge for that convo
+        setUnreadMap(prev => ({
+          ...prev,
+          [message.conversationId]: (prev[message.conversationId] || 0) + 1
+        }));
+        // Bump that conversation to top of list
+        setConvs(prev => {
+          const updated = prev.map(c =>
+            c.id === message.conversationId
+              ? { ...c, updatedAt: new Date().toISOString(), lastMessage: message.content }
+              : c
+          );
+          return updated.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        });
+      }
+    };
+
+    // Typing indicator
+    const onTypingUpdate = (data: { conversationId: string; userId: string; userName: string; isTyping: boolean }) => {
+      if (data.conversationId !== selectedId) return;
+      if (data.userId === user?.id) return; // Don't show own typing
+
+      setTypingUsers(prev => ({
+        ...prev,
+        [data.userId]: { userName: data.userName, isTyping: data.isTyping }
+      }));
+
+      // Auto-clear after 4s if no stop event
+      if (data.isTyping) {
+        if (typingTimers.current[data.userId]) clearTimeout(typingTimers.current[data.userId]);
+        typingTimers.current[data.userId] = setTimeout(() => {
+          setTypingUsers(prev => ({ ...prev, [data.userId]: { ...prev[data.userId], isTyping: false } }));
+        }, 4000);
+      }
+    };
+
+    // New conversation appeared (from any channel or agent)
+    const onConversationNew = (conv: any) => {
+      setConvs(prev => [conv, ...prev]);
+      toast.info(`New conversation from ${conv.contactName || 'Customer'}`);
+    };
+
+    // Conversation was assigned
+    const onConversationAssigned = (conv: any) => {
+      setConvs(prev => prev.map(c => c.id === conv.id ? { ...c, ...conv } : c));
+    };
+
+    // Conversation resolved
+    const onConversationResolved = (conv: any) => {
+      if (activeTab === 'OPEN') {
+        // Remove from list if we're in OPEN tab
+        setConvs(prev => prev.filter(c => c.id !== conv.id));
+        if (selectedId === conv.id) setSelectedId(null);
+      } else {
+        setConvs(prev => prev.map(c => c.id === conv.id ? { ...c, ...conv } : c));
+      }
+    };
+
+    // Generic status change
+    const onConversationStatus = (conv: any) => {
+      setConvs(prev => prev.map(c => c.id === conv.id ? { ...c, ...conv } : c));
+    };
+
+    socket.on(SOCKET_EVENTS.MESSAGE_NEW, onMessageNew);
+    socket.on(SOCKET_EVENTS.TYPING_UPDATE, onTypingUpdate);
+    socket.on(SOCKET_EVENTS.CONVERSATION_NEW, onConversationNew);
+    socket.on(SOCKET_EVENTS.CONVERSATION_ASSIGNED, onConversationAssigned);
+    socket.on(SOCKET_EVENTS.CONVERSATION_RESOLVED, onConversationResolved);
+    socket.on(SOCKET_EVENTS.CONVERSATION_STATUS, onConversationStatus);
+
+    return () => {
+      socket.off(SOCKET_EVENTS.MESSAGE_NEW, onMessageNew);
+      socket.off(SOCKET_EVENTS.TYPING_UPDATE, onTypingUpdate);
+      socket.off(SOCKET_EVENTS.CONVERSATION_NEW, onConversationNew);
+      socket.off(SOCKET_EVENTS.CONVERSATION_ASSIGNED, onConversationAssigned);
+      socket.off(SOCKET_EVENTS.CONVERSATION_RESOLVED, onConversationResolved);
+      socket.off(SOCKET_EVENTS.CONVERSATION_STATUS, onConversationStatus);
+    };
+  }, [socket, selectedId, activeTab, user?.id]);
 
   // Fetch canned responses
   useEffect(() => {
@@ -161,12 +281,53 @@ export default function InboxPage() {
 
   const handleSendMessage = async () => {
     if (!selectedId || !messageText.trim()) return;
-    try {
-      const response = await messageService.send(selectedId, messageText);
-      setMessages([...messages, response.data]);
-      setMessageText("");
-    } catch (error) {
-      toast.error("Failed to send message");
+
+    // Optimistic UI — add message immediately
+    const optimisticMsg = {
+      id: `temp-${Date.now()}`,
+      conversationId: selectedId,
+      content: messageText,
+      type: 'TEXT',
+      senderType: 'AGENT',
+      senderId: user?.id,
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+    const textToSend = messageText;
+    setMessageText("");
+
+    // Stop typing indicator
+    sendTypingStop(selectedId);
+
+    if (isConnected) {
+      // Send via socket for instant delivery
+      sendMessageViaSocket(selectedId, textToSend);
+      // Remove optimistic message (socket will deliver the real one)
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+    } else {
+      // Fallback to REST if socket is not available
+      try {
+        const response = await messageService.send(selectedId, textToSend);
+        setMessages(prev => [
+          ...prev.filter(m => m.id !== optimisticMsg.id),
+          response.data
+        ]);
+      } catch (error) {
+        toast.error("Failed to send message");
+        setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+      }
+    }
+  };
+
+  // Handle typing indicator changes
+  const handleMessageTextChange = (text: string) => {
+    setMessageText(text);
+    if (!selectedId) return;
+    if (text.length > 0) {
+      sendTypingStart(selectedId, user?.name || 'Agent');
+    } else {
+      sendTypingStop(selectedId);
     }
   };
 
@@ -456,13 +617,27 @@ export default function InboxPage() {
               ))}
             </div>
 
+            {/* Typing Indicator */}
+            {Object.values(typingUsers).some(u => u.isTyping) && (
+              <div className="px-8 pb-1 flex items-center gap-2">
+                <div className="flex gap-1">
+                  {[0,1,2].map(i => (
+                    <span key={i} className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                  ))}
+                </div>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {Object.values(typingUsers).filter(u => u.isTyping).map(u => u.userName).join(', ')} {Object.values(typingUsers).filter(u => u.isTyping).length === 1 ? 'is' : 'are'} typing...
+                </span>
+              </div>
+            )}
+
             {/* Input Area */}
             <div className="p-6 border-t border-border bg-background font-outfit">
               <div className="relative bg-muted/40 rounded-[2rem] p-3 border border-border/40 focus-within:bg-background focus-within:border-primary/40 focus-within:ring-4 focus-within:ring-primary/5 transition-all shadow-inner">
                 <textarea 
                   rows={1}
                   value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
+                  onChange={(e) => handleMessageTextChange(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                   placeholder={`Secure direct reply to ${selectedChat?.contact?.name}...`}
                   className="w-full bg-transparent border-none focus:ring-0 resize-none px-4 py-2 text-sm max-h-48 min-h-[48px] font-medium"

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import { UserProvider } from "@/context/user-context";
+import { SocketProvider } from "@/context/socket-context";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -37,8 +38,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col selection:bg-primary/20">
         <UserProvider>
-          {children}
-          <Toaster position="top-right" richColors toastOptions={{ className: 'font-outfit' }} />
+          <SocketProvider>
+            {children}
+            <Toaster position="top-right" richColors toastOptions={{ className: 'font-outfit' }} />
+          </SocketProvider>
         </UserProvider>
       </body>
     </html>
