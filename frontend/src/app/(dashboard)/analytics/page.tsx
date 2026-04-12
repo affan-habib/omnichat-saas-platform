@@ -296,20 +296,20 @@ export default function AnalyticsPage() {
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-border">
-                   {agentStats.map((agent, i) => (
-                    <tr key={i} className="hover:bg-muted transition-colors cursor-pointer group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center overflow-hidden">
-                             {agent.user?.avatarUrl ? (
-                               <img src={agent.user.avatarUrl} alt="" />
-                             ) : (
-                               <span className="text-[10px] font-bold">{agent.user?.name?.[0]}</span>
-                             )}
-                          </div>
-                          <span className="text-xs font-bold group-hover:text-primary transition-colors">{agent.user?.name}</span>
-                        </div>
-                      </td>
+                    {agentStats.map((agent, i) => (
+                     <tr key={i} className="hover:bg-muted transition-colors cursor-pointer group">
+                       <td className="px-6 py-4">
+                         <div className="flex items-center gap-3">
+                           <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center overflow-hidden">
+                              {agent?.user?.avatarUrl ? (
+                                <img src={agent.user.avatarUrl} alt="" />
+                              ) : (
+                                <span className="text-[10px] font-bold">{agent?.user?.name?.[0]}</span>
+                              )}
+                           </div>
+                           <span className="text-xs font-bold group-hover:text-primary transition-colors">{agent?.user?.name || 'Unknown Agent'}</span>
+                         </div>
+                       </td>
                       <td className="px-6 py-4">
                         <span className="text-xs font-bold">{agent._count.id} res.</span>
                       </td>
