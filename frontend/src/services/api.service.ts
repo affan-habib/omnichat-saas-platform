@@ -66,3 +66,11 @@ export const analyticsService = {
   getChannels: () => api.get('/analytics/channels'),
   getDispositions: () => api.get('/analytics/dispositions'),
 };
+
+export const routingService = {
+  list: () => api.get('/routing-rules'),
+  create: (data: any) => api.post('/routing-rules', data),
+  update: (id: string, data: any) => api.put(`/routing-rules/${id}`, data),
+  toggle: (id: string, isActive: boolean) => api.put(`/routing-rules/${id}/toggle`, { isActive }),
+  remove: (id: string) => api.delete(`/routing-rules/${id}`),
+};

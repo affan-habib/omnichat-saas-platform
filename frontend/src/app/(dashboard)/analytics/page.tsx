@@ -91,6 +91,7 @@ export default function AnalyticsPage() {
       bg: "bg-indigo-500/10"
     },
   ];
+
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-background p-8 space-y-8 font-outfit">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -210,7 +211,7 @@ export default function AnalyticsPage() {
                     <circle cx="50%" cy="50%" r="36%" className="fill-none stroke-brand-instagram stroke-[15]" strokeDasharray="120 251" strokeDashoffset="0" strokeLinecap="round" />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-bold">12k</span>
+                    <span className="text-3xl font-bold">{overview?.totalConversations || 0}</span>
                     <span className="text-[10px] font-bold text-muted-foreground uppercase">Total</span>
                   </div>
                </div>
@@ -254,25 +255,20 @@ export default function AnalyticsPage() {
            </CardHeader>
            <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                 {[
-                   { label: "General Inquiry", value: "35%", color: "bg-blue-500" },
-                   { label: "Technical Support", value: "28%", color: "bg-amber-500" },
-                   { label: "Billing/Refund", value: "15%", color: "bg-emerald-500" },
-                   { label: "Sales Lead", value: "12%", color: "bg-indigo-500" },
-                   { label: "Other", value: "10%", color: "bg-slate-400" },
-                 ].map((d, i) => (
+                 {dispositionStats.slice(0, 5).map((d, i) => (
                    <div key={i} className="space-y-3 p-4 rounded-3xl bg-muted/30 border border-border/50 group hover:border-primary/30 transition-all">
                       <div className="flex items-center justify-between">
-                         <div className={cn("h-2 w-2 rounded-full", d.color)} />
+                         <div className={cn("h-2 w-2 rounded-full", ["bg-blue-500", "bg-amber-500", "bg-emerald-500", "bg-indigo-500", "bg-slate-400"][i])} />
                          <span className="text-[10px] font-black uppercase text-muted-foreground">Volume</span>
                       </div>
-                      <p className="text-xs font-bold text-muted-foreground truncate">{d.label}</p>
-                      <p className="text-2xl font-black">{d.value}</p>
+                      <p className="text-xs font-bold text-muted-foreground truncate">{d.disposition || 'General'}</p>
+                      <p className="text-2xl font-black">{d._count.id}</p>
                       <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-                         <motion.div initial={{ width: 0 }} animate={{ width: d.value }} className={cn("h-full rounded-full", d.color)} />
+                         <motion.div initial={{ width: 0 }} animate={{ width: `${(d._count.id / (overview?.totalConversations || 1)) * 100}%` }} className={cn("h-full rounded-full", ["bg-blue-500", "bg-amber-500", "bg-emerald-500", "bg-indigo-500", "bg-slate-400"][i])} />
                       </div>
                    </div>
                  ))}
+                 {dispositionStats.length === 0 && <div className="col-span-5 text-center text-muted-foreground py-8">No disposition data available</div>}
               </div>
            </CardContent>
         </Card>
@@ -300,37 +296,43 @@ export default function AnalyticsPage() {
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-border">
-                   {[
-                     { name: "Agent Smith", resolved: 42, rating: 4.8, status: "Active" },
-                     { name: "Sarah Miller", resolved: 38, rating: 4.9, status: "Active" },
-                     { name: "Michael Chen", resolved: 25, rating: 4.5, status: "Away" },
-                     { name: "Alex Johnson", resolved: 31, rating: 4.7, status: "Active" },
-                   ].map((agent, i) => (
+                   {agentStats.map((agent, i) => (
                     <tr key={i} className="hover:bg-muted transition-colors cursor-pointer group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <img src={`https://ui-avatars.com/api/?name=${agent.name}&background=random`} className="h-8 w-8 rounded-full border border-border" alt="" />
-                          <span className="text-xs font-bold group-hover:text-primary transition-colors">{agent.name}</span>
+                          <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center overflow-hidden">
+                             {agent.user.avatarUrl ? (
+                               <img src={agent.user.avatarUrl} alt="" />
+                             ) : (
+                               <span className="text-[10px] font-bold">{agent.user.name?.[0]}</span>
+                             )}
+                          </div>
+                          <span className="text-xs font-bold group-hover:text-primary transition-colors">{agent.user.name}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-xs font-bold">{agent.resolved} chats</span>
+                        <span className="text-xs font-bold">{agent._count.id} res.</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                          <span className="text-xs font-bold">{agent.rating}</span>
+                          <span className="text-xs font-bold">4.9</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className={cn(
                           "inline-flex h-1.5 w-1.5 rounded-full mr-2",
-                          agent.status === "Active" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-amber-500"
+                          agent.user.status === "ONLINE" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-amber-500"
                         )} />
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground">{agent.status}</span>
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground">{agent.user.status?.toLowerCase()}</span>
                       </td>
                     </tr>
                    ))}
+                   {agentStats.length === 0 && (
+                     <tr>
+                       <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">No agent performance data</td>
+                     </tr>
+                   )}
                  </tbody>
                </table>
              </div>

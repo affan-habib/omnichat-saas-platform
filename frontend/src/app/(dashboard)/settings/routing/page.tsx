@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { 
@@ -23,39 +23,42 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { routingService, teamService } from "@/services/api.service";
 
 export default function RoutingPage() {
-  const [activeWorkflow, setActiveWorkflow] = useState<string | null>("wf-1");
+  const [activeWorkflow, setActiveWorkflow] = useState<string | null>(null);
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const workflows = [
-    {
-      id: "wf-1",
-      name: "Standard Business Hours Routing",
-      description: "Distribute incoming chats to available agents based on workload during 9AM - 5PM.",
-      active: true,
-      conditions: "Time is 09:00 - 17:00",
-      target: "General Support Team",
-      priority: "Medium"
-    },
-    {
-      id: "wf-2",
-      name: "High Value Client Auto-Assignment",
-      description: "Direct routing for VIP tagged customers to dedicated senior account managers.",
-      active: true,
-      conditions: "Tag includes 'VIP'",
-      target: "VIP Success Team",
-      priority: "High"
-    },
-    {
-      id: "wf-3",
-      name: "After Hours Bot Triage",
-      description: "AI Bot handles initial inquiry and creates a ticket for following morning.",
-      active: false,
-      conditions: "Time is After Hours",
-      target: "Self-Service Bot",
-      priority: "Low"
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [wfRes, teamsRes] = await Promise.all([
+          routingService.list(),
+          teamService.list()
+        ]);
+        setWorkflows(wfRes.data);
+        setTeams(teamsRes.data);
+        if (wfRes.data.length > 0) setActiveWorkflow(wfRes.data[0].id);
+      } catch (error) {
+        toast.error("Failed to load routing rules");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleToggle = async (id: string, current: boolean) => {
+    try {
+      await routingService.toggle(id, !current);
+      setWorkflows(prev => prev.map(wf => wf.id === id ? { ...wf, isActive: !current } : wf));
+      toast.success(`Workflow ${!current ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      toast.error("Failed to update workflow status");
     }
-  ];
+  };
 
   return (
     <div className="flex min-h-full flex-col bg-background p-8 space-y-8 font-outfit">
@@ -96,16 +99,16 @@ export default function RoutingPage() {
                   <div className="flex gap-4">
                     <div className={cn(
                       "h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
-                      wf.active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      wf.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                     )}>
-                      {wf.id === 'wf-3' ? <Bot className="h-6 w-6" /> : <Split className="h-6 w-6" />}
+                      <Split className="h-6 w-6" />
                     </div>
                     <div>
                       <h4 className="font-bold text-lg group-hover:text-primary transition-colors">{wf.name}</h4>
-                      <p className="text-xs text-muted-foreground font-medium line-clamp-1">{wf.description}</p>
+                      <p className="text-xs text-muted-foreground font-medium line-clamp-1">Created on {new Date(wf.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <Switch checked={wf.active} />
+                  <Switch checked={wf.isActive} onCheckedChange={() => handleToggle(wf.id, wf.isActive)} />
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
@@ -113,22 +116,26 @@ export default function RoutingPage() {
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Conditions</p>
                     <div className="flex items-center gap-2">
                       <Clock className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-xs font-bold">{wf.conditions}</span>
+                      <span className="text-xs font-bold truncate">
+                        {JSON.stringify(wf.conditions)}
+                      </span>
                     </div>
                   </div>
                   <div className="p-3 rounded-2xl bg-muted/50 border border-border/50">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Target Team</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Target</p>
                     <div className="flex items-center gap-2">
                       <Users className="h-3.5 w-3.5 text-indigo-500" />
-                      <span className="text-xs font-bold">{wf.target}</span>
+                      <span className="text-xs font-bold truncate">
+                        {teams.find(t => t.id === wf.action?.assignToTeam)?.name || 'N/A'}
+                      </span>
                     </div>
                   </div>
                   <div className="p-3 rounded-2xl bg-muted/50 border border-border/50 hidden md:block">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Priority</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Priority Score</p>
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "h-2 w-2 rounded-full",
-                        wf.priority === 'High' ? 'bg-red-500' : wf.priority === 'Medium' ? 'bg-amber-500' : 'bg-slate-400'
+                        wf.priority > 50 ? 'bg-red-500' : wf.priority > 0 ? 'bg-amber-500' : 'bg-slate-400'
                       )} />
                       <span className="text-xs font-bold">{wf.priority}</span>
                     </div>
@@ -136,6 +143,11 @@ export default function RoutingPage() {
                 </div>
               </motion.div>
             ))}
+            {workflows.length === 0 && (
+              <div className="p-12 text-center border-2 border-dashed border-border rounded-3xl text-muted-foreground">
+                No automation workflows defined.
+              </div>
+            )}
           </div>
         </div>
 

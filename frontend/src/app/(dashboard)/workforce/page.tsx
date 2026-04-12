@@ -114,9 +114,9 @@ export default function WorkforcePage() {
       {/* Stats Quick-View */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
          {[
-           { label: "Total Workforce", value: "24", icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
-           { label: "Supervisors", value: "3", icon: Shield, color: "text-indigo-500", bg: "bg-indigo-500/10" },
-           { label: "Active Teams", value: "3", icon: Target, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+           { label: "Total Workforce", value: staff.length.toString(), icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
+           { label: "Supervisors", value: staff.filter(s => s.role === 'SUPERVISOR').length.toString(), icon: Shield, color: "text-indigo-500", bg: "bg-indigo-500/10" },
+           { label: "Active Teams", value: teams.length.toString(), icon: Target, color: "text-emerald-500", bg: "bg-emerald-500/10" },
            { label: "Avg SLA", value: "99.4%", icon: TrendingUp, color: "text-amber-500", bg: "bg-amber-500/10" },
          ].map((stat, i) => (
            <Card key={i} className="border-border/50 shadow-sm rounded-3xl bg-card">
@@ -241,6 +241,11 @@ export default function WorkforcePage() {
                                </td>
                             </tr>
                          ))}
+                         {staff.length === 0 && (
+                           <tr>
+                             <td colSpan={5} className="px-8 py-12 text-center text-muted-foreground font-medium">No staff members found.</td>
+                           </tr>
+                         )}
                       </tbody>
                    </table>
                 </CardContent>
@@ -248,16 +253,16 @@ export default function WorkforcePage() {
            </>
          ) : (
            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {initialTeams.map((team) => (
+              {teams.map((team) => (
                 <Card key={team.id} className="rounded-[2.5rem] border-border/50 shadow-md bg-card overflow-hidden hover:shadow-xl transition-all group">
-                   <div className={cn("h-1.5 w-full", team.color)} />
+                   <div className={cn("h-1.5 w-full bg-primary")} />
                    <CardContent className="p-8">
                       <div className="flex justify-between items-start mb-6">
                          <div>
                             <h4 className="text-xl font-black group-hover:text-primary transition-colors">{team.name}</h4>
                             <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-1">
                                <Shield className="h-3 w-3 text-primary" />
-                               Lead: {team.supervisor}
+                               Created: {new Date(team.createdAt).toLocaleDateString()}
                             </p>
                          </div>
                          <Button onClick={() => toast.info("Opening team audit logs")} variant="ghost" size="icon" className="h-8 w-8 rounded-full"><MoreVertical className="h-4 w-4" /></Button>
@@ -265,11 +270,11 @@ export default function WorkforcePage() {
                       <div className="grid grid-cols-2 gap-4 mb-6">
                          <div className="p-4 rounded-2xl bg-muted/50 text-center">
                             <p className="text-[10px] font-black text-muted-foreground uppercase">Members</p>
-                            <p className="text-lg font-black">{team.members}</p>
+                            <p className="text-lg font-black">{team._count?.members || 0}</p>
                          </div>
                          <div className="p-4 rounded-2xl bg-muted/50 text-center">
-                            <p className="text-[10px] font-black text-muted-foreground uppercase">Active</p>
-                            <p className="text-lg font-black text-primary">{team.active}</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase">Routing Rules</p>
+                            <p className="text-lg font-black text-primary">{team._count?.routingRules || 0}</p>
                          </div>
                       </div>
                       <Button onClick={() => toast.info(`Managing ${team.name} roster`)} className="w-full h-11 rounded-xl bg-muted hover:bg-primary hover:text-white transition-all font-bold text-xs uppercase">Manage Team</Button>
@@ -286,7 +291,7 @@ export default function WorkforcePage() {
          )}
       </div>
 
-      {/* 1. Dynamic Permissions Modal (The logically explained one) */}
+      {/* 1. Dynamic Permissions Modal */}
       <AnimatePresence>
         {isPermissionModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -349,7 +354,7 @@ export default function WorkforcePage() {
         )}
       </AnimatePresence>
 
-      {/* 2. Unified Add Staff Modal (Agents & Supervisors) */}
+      {/* 2. Unified Add Staff Modal */}
       <AnimatePresence>
         {isAddStaffOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -385,27 +390,15 @@ export default function WorkforcePage() {
                    <div className="space-y-2">
                       <label className="text-xs font-black uppercase ml-1 text-muted-foreground">Assign to Team</label>
                       <select className="w-full h-12 rounded-2xl bg-muted px-4 font-bold text-sm outline-none border-none">
-                         <option>General Support</option>
-                         <option>VIP Account Managers</option>
-                         <option>Technical Engineering</option>
+                         {teams.map(t => <option key={t.id}>{t.name}</option>)}
+                         <option>Unassigned</option>
                       </select>
-                   </div>
-                   <div className="space-y-2 pt-2">
-                       <div className="flex items-center justify-between mb-2">
-                         <label className="text-xs font-black uppercase text-muted-foreground ml-1">Concurrent Session Cap</label>
-                         <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Rec: 5-8</span>
-                       </div>
-                       <div className="flex items-center gap-4 p-4 rounded-3xl bg-primary/5 border border-primary/20">
-                          <Zap className="h-5 w-5 text-primary" />
-                          <p className="text-[10px] font-medium text-muted-foreground flex-1">Max active chats allowed per session.</p>
-                          <input type="number" defaultValue={8} className="w-16 h-10 rounded-xl bg-card border border-border text-center font-bold" />
-                       </div>
                    </div>
                 </div>
 
                 <div className="mt-10 flex gap-4">
                    <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold" onClick={() => setIsAddStaffOpen(false)}>Cancel</Button>
-                   <Button className="flex-1 h-12 rounded-2xl font-bold bg-primary text-white shadow-xl shadow-primary/20" onClick={() => { toast.success("New staff member has been invited to the platform!"); setIsAddStaffOpen(false); }}>Send Invite</Button>
+                   <Button className="flex-1 h-12 rounded-2xl font-bold bg-primary text-white shadow-xl shadow-primary/20" onClick={() => { toast.success("New staff member has been invited!"); setIsAddStaffOpen(false); }}>Send Invite</Button>
                 </div>
              </motion.div>
           </div>
@@ -435,25 +428,15 @@ export default function WorkforcePage() {
                    <div className="space-y-2">
                       <label className="text-xs font-black uppercase ml-1 text-muted-foreground">Lead Supervisor</label>
                       <select className="w-full h-12 rounded-2xl bg-muted px-4 font-bold text-sm outline-none border-none">
-                         <option>Sarah Miller</option>
-                         <option>David Chen</option>
-                         <option>Michael Wilson</option>
+                         {staff.filter(s => s.role === 'SUPERVISOR').map(s => <option key={s.id}>{s.name}</option>)}
                          <option>Unassigned</option>
                       </select>
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-xs font-black uppercase ml-1 text-muted-foreground">Group Color Code</label>
-                      <div className="flex gap-2">
-                         {['bg-blue-500', 'bg-indigo-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500'].map(c => (
-                            <button key={c} className={cn("h-8 w-8 rounded-full border-2 border-background", c)} />
-                         ))}
-                      </div>
                    </div>
                 </div>
 
                 <div className="mt-10 flex gap-4">
                    <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold" onClick={() => setIsCreateTeamOpen(false)}>Cancel</Button>
-                   <Button className="flex-1 h-12 rounded-2xl font-bold bg-primary text-white shadow-xl shadow-primary/20" onClick={() => { toast.success("Team profile created and saved to workforce library!"); setIsCreateTeamOpen(false); }}>Create Profile</Button>
+                   <Button className="flex-1 h-12 rounded-2xl font-bold bg-primary text-white shadow-xl shadow-primary/20" onClick={() => { toast.success("Team created!"); setIsCreateTeamOpen(false); }}>Create Profile</Button>
                 </div>
              </motion.div>
           </div>

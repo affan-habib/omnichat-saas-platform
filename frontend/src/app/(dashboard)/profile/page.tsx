@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { 
-  User, 
+  User as UserIcon, 
   Mail, 
   Shield, 
   Clock, 
@@ -24,9 +24,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function ProfilePage() {
-  const { role } = useUser();
+  const { user, role } = useUser();
 
-  const stats = {
+  const statsMap: Record<string, any[]> = {
     agent: [
       { label: "Resolved Today", value: "42", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-500/10" },
       { label: "Avg. Response", value: "1.2m", icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -44,7 +44,7 @@ export default function ProfilePage() {
     ]
   };
 
-  const currentStats = stats[role] || stats.agent;
+  const currentStats = statsMap[role.toLowerCase()] || statsMap.agent;
 
   return (
     <div className="flex min-h-full flex-col bg-background p-8 pt-6 space-y-8 font-outfit">
@@ -57,7 +57,7 @@ export default function ProfilePage() {
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
           <div className="relative">
             <div className="h-32 w-32 rounded-3xl bg-primary ring-4 ring-white/10 overflow-hidden">
-               <img src={`https://ui-avatars.com/api/?name=${role.toUpperCase()}&background=2563EB&color=fff&size=512`} alt="Profile" className="h-full w-full object-cover" />
+               <img src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || role}&background=2563EB&color=fff&size=512`} alt="Profile" className="h-full w-full object-cover" />
             </div>
             <div className="absolute -bottom-2 -right-2 h-10 w-10 rounded-2xl bg-green-500 border-4 border-slate-900 flex items-center justify-center shadow-lg">
               <Zap className="h-5 w-5 text-white" />
@@ -66,7 +66,7 @@ export default function ProfilePage() {
 
           <div className="text-center md:text-left space-y-2">
             <div className="flex flex-col md:flex-row items-center gap-3">
-              <h1 className="text-4xl font-black tracking-tight capitalize">{role} Account</h1>
+              <h1 className="text-4xl font-black tracking-tight capitalize">{user?.name || `${role} Account`}</h1>
               <span className="px-3 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-black uppercase tracking-widest border border-primary/30">
                 {role === 'admin' ? 'Master Access' : role === 'supervisor' ? 'Team Director' : 'Professional Agent'}
               </span>
@@ -76,11 +76,11 @@ export default function ProfilePage() {
             <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-4">
                <div className="flex items-center gap-2 text-xs font-bold text-slate-300 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
                   <Mail className="h-4 w-4 text-primary" />
-                  {role}@omnichat.com
+                  {user?.email}
                </div>
                <div className="flex items-center gap-2 text-xs font-bold text-slate-300 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
                   <Shield className="h-4 w-4 text-primary" />
-                  Employee ID: ON-12903
+                  ID: #{user?.id?.split('-')[0] || 'N/A'}
                </div>
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function ProfilePage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {currentStats.map((stat, i) => (
+        {currentStats.map((stat: any, i: number) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
@@ -131,7 +131,7 @@ export default function ProfilePage() {
         <div className="lg:col-span-2 space-y-6">
            <div className="flex items-center justify-between">
               <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
-                 <User className="h-6 w-6 text-primary" />
+                 <UserIcon className="h-6 w-6 text-primary" />
                  Account Information
               </h2>
            </div>
@@ -141,11 +141,11 @@ export default function ProfilePage() {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Full Display Name</label>
-                       <div className="p-4 rounded-2xl bg-muted font-bold capitalize">{role} User</div>
+                       <div className="p-4 rounded-2xl bg-muted font-bold capitalize">{user?.name}</div>
                     </div>
                     <div className="space-y-2">
                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Email Address</label>
-                       <div className="p-4 rounded-2xl bg-muted font-bold">{role}@omnichat.com</div>
+                       <div className="p-4 rounded-2xl bg-muted font-bold">{user?.email}</div>
                     </div>
                     <div className="space-y-2">
                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Assigned Department</label>
