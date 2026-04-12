@@ -18,6 +18,7 @@ async function main() {
       password: await bcrypt.hash('password123', 10),
       role: 'ADMIN',
       status: 'ONLINE',
+      needsPasswordChange: false,
     },
   })
 
@@ -30,6 +31,7 @@ async function main() {
       password: await bcrypt.hash('password123', 10),
       role: 'AGENT',
       status: 'ONLINE',
+      needsPasswordChange: false,
     },
   })
 

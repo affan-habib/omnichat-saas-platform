@@ -64,9 +64,15 @@ export const inviteUser = async (tenantId: string, data: any) => {
 };
 
 export const updateUser = async (id: string, tenantId: string, data: any) => {
+  const updateData = { ...data };
+  
+  if (updateData.password) {
+    updateData.password = await bcrypt.hash(updateData.password, 10);
+  }
+
   return await prisma.user.update({
     where: { id, tenantId },
-    data
+    data: updateData
   });
 };
 
