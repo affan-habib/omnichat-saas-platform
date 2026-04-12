@@ -36,4 +36,12 @@ export const remove = async (req: AuthRequest, res: Response, next: NextFunction
   } catch (error) {
     next(error);
   }
+export const toggle = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { isActive } = req.body;
+    const rule = await ruleService.updateRule(req.params.id, req.user!.tenantId, { isActive });
+    res.json(rule);
+  } catch (error) {
+    next(error);
+  }
 };

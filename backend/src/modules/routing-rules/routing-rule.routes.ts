@@ -65,4 +65,21 @@ router.put('/:id', routingRuleController.update);
  */
 router.delete('/:id', routingRuleController.remove);
 
+/**
+ * @swagger
+ * /api/routing-rules/{id}/toggle:
+ *   put:
+ *     summary: Toggle routing rule
+ *     tags: [Routing Rules]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Rule toggled
+ */
+router.put('/:id/toggle', routingRuleController.toggle);
+
 export default router;
