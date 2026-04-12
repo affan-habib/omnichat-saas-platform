@@ -68,4 +68,17 @@ router.post('/conversation/:conversationId', tagController.link);
  */
 router.delete('/conversation/:conversationId/:tagId', tagController.unlink);
 
+/**
+ * @swagger
+ * /api/tags/{id}:
+ *   put:
+ *     summary: Update tag
+ *     tags: [Tags]
+ *   delete:
+ *     summary: Delete tag
+ *     tags: [Tags]
+ */
+router.put('/:id', tagController.update);
+router.delete('/:id', tagController.remove);
+
 export default router;

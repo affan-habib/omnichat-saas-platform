@@ -24,6 +24,7 @@ model Tenant {
   cannedResponses CannedResponse[]
   routingRules    RoutingRule[]
   tags            Tag[]
+  auditLogs       AuditLog[]
 }
 
 // ─── USERS & ROLES ─────────────────────────────────────────────────────────────
@@ -59,6 +60,7 @@ model User {
   tenant           Tenant           @relation(fields: [tenantId], references: [id])
   teamMemberships  TeamMember[]
   assignedConversations Conversation[] @relation("AssignedAgent")
+  auditLogs        AuditLog[]
 }
 
 // ─── TEAMS ─────────────────────────────────────────────────────────────────────
@@ -244,4 +246,21 @@ model RoutingRule {
   createdAt  DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+// ─── AUDIT LOGS ──────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  action    String   // e.g. "USER_INVITED", "TEAM_CREATED"
+  resource  String   // e.g. "TEAM", "USER", "CONVERSATION"
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
 }

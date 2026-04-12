@@ -20,6 +20,24 @@ export const create = async (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
+export const update = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const tag = await tagService.updateTag(req.params.id, req.user!.tenantId, req.body);
+    res.json(tag);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const remove = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    await tagService.deleteTag(req.params.id, req.user!.tenantId);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const link = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await tagService.addTagToConversation(req.params.conversationId, req.body.tagId);

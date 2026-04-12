@@ -16,6 +16,7 @@ import cannedResponseRoutes from './modules/canned-responses/canned-response.rou
 import tagRoutes from './modules/tags/tag.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
 import routingRuleRoutes from './modules/routing-rules/routing-rule.routes';
+import auditLogRoutes from './modules/audit-logs/audit-log.routes';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use('/api/canned-responses', cannedResponseRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/routing-rules', routingRuleRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 
 // Error Handler
 app.use(errorHandler);
