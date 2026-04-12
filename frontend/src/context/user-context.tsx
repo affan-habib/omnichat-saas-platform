@@ -53,8 +53,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         try {
           const res = await authService.getMe();
-          setUser(res.data);
-          setRoleState(res.data.role.toLowerCase() as UserRole);
+          const userData = res.data;
+          setUser(userData);
+          setRoleState(userData.role.toLowerCase() as UserRole);
+
+          // Force password change if needed
+          if (userData.needsPasswordChange && pathname !== '/reset-password') {
+            router.push('/reset-password');
+          } else if (!userData.needsPasswordChange && pathname === '/reset-password') {
+            router.push('/inbox');
+          }
         } catch (error) {
           console.error("Auth check failed", error);
           localStorage.removeItem("token");

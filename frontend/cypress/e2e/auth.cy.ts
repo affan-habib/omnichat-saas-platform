@@ -24,10 +24,11 @@ describe('Authentication', () => {
   it('should logout successfully', () => {
     cy.login('agent1@acme.com');
     
-    // find logout button - usually in profile or sidebar
-    // Based on user-context.tsx, logout is provided. 
-    // Let's assume there's a logout button in the dashboard
-    cy.get('button').contains('Log out').click({ force: true });
+    // Open settings dropdown
+    cy.get('button').find('svg').filter('.lucide-settings').parent().click();
+    
+    // Click logout
+    cy.contains('Logout Account').click();
     cy.url().should('include', '/login');
   });
 });

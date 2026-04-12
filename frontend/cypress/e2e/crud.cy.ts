@@ -40,8 +40,9 @@ describe('CRUD Operations - Canned Responses', () => {
     cy.contains(titleToDelete).should('exist');
     
     // Click delete on the card with this title
-    cy.contains('.Card', titleToDelete).within(() => {
-      cy.get('button').find('svg').parent().last().click(); // The trash icon is usually the last button in the header
+    cy.contains(titleToDelete).parents('.rounded-2xl').within(() => {
+      // Find the button with text-destructive class (trash icon)
+      cy.get('button.text-destructive').click({ force: true });
     });
     
     cy.contains(titleToDelete).should('not.exist');

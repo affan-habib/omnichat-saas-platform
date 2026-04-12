@@ -55,7 +55,7 @@ export default function WorkforcePage() {
   const [editingTeam, setEditingTeam] = useState<any>(null);
 
   // Form States
-  const [staffForm, setStaffForm] = useState({ name: "", email: "", role: "AGENT", teamId: "" });
+  const [staffForm, setStaffForm] = useState({ name: "", email: "", role: "AGENT", teamId: "", password: "password123" });
   const [teamForm, setTeamForm] = useState({ name: "", color: "#6366f1" });
 
   const isAdmin = userRole === 'admin' || userRole === 'owner';
@@ -89,7 +89,7 @@ export default function WorkforcePage() {
       await userService.invite(staffForm);
       toast.success("Staff member invited successfully!");
       setIsAddStaffOpen(false);
-      setStaffForm({ name: "", email: "", role: "AGENT", teamId: "" });
+      setStaffForm({ name: "", email: "", role: "AGENT", teamId: "", password: "password123" });
       fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Failed to invite staff");
@@ -181,7 +181,7 @@ export default function WorkforcePage() {
                </Button>
                <Button 
                  onClick={() => {
-                   setStaffForm({ name: "", email: "", role: "AGENT", teamId: "" });
+                   setStaffForm({ name: "", email: "", role: "AGENT", teamId: "", password: "password123" });
                    setIsAddStaffOpen(true);
                  }} 
                  className="gap-2 bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-2xl shadow-xl shadow-primary/20"
@@ -433,6 +433,16 @@ export default function WorkforcePage() {
                         placeholder="john@acme.com" 
                         className="h-12 rounded-2xl bg-muted border-none" 
                       />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-xs font-black uppercase ml-1 text-muted-foreground">Temporary Password</label>
+                      <Input 
+                        value={staffForm.password || "password123"} 
+                        onChange={(e) => setStaffForm({...staffForm, password: e.target.value})}
+                        placeholder="password123" 
+                        className="h-12 rounded-2xl bg-muted border-none font-mono" 
+                      />
+                      <p className="text-[10px] text-muted-foreground italic px-2">User will be forced to change this on first login.</p>
                    </div>
                 </div>
 

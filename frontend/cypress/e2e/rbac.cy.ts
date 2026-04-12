@@ -1,15 +1,15 @@
 describe('Role-based Access Control', () => {
   it('should restrict Agent from accessing Analytics and Workforce', () => {
     cy.login('agent1@acme.com');
+    // Wait for the nav to be visible
+    cy.get('nav').should('be.visible');
     
-    // Check sidebar links
-    cy.contains('Reports').should('not.exist');
-    cy.contains('Workforce').should('not.exist');
+    // Check sidebar links specifically in the nav section
+    cy.get('nav').contains('Reports').should('not.exist');
+    cy.get('nav').contains('Workforce').should('not.exist');
     
-    // Try visiting directly
+    // Try visiting directly - should stay on inbox or redirect
     cy.visit('/analytics', { failOnStatusCode: false });
-    // It should either redirect or show no data / error
-    // In Next.js, if not rendered in sidebar, it might still exist but let's check UI
     cy.url().should('not.include', '/analytics');
   });
 
