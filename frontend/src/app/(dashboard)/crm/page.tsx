@@ -24,6 +24,8 @@ import {
   X,
   Shield,
   CreditCard,
+  Edit2,
+  Trash2,
   History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,10 @@ import { cn } from "@/lib/utils";
 import { contactService } from "@/services/api.service";
 
 export default function CRMPage() {
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: "", email: "", phone: "", location: "" });
@@ -280,7 +286,7 @@ export default function CRMPage() {
                   <div className="relative h-32 w-32">
                      <svg className="h-full w-full rotate-[-90deg]">
                         <circle cx="50%" cy="50%" r="40%" className="fill-none stroke-muted stroke-[12]" />
-                        <circle cx="50%" cy="50%" r="40%" className="fill-none stroke-emerald-500 stroke-[12]" strokeDasharray="180 251" strokeDashoffset="0" strokeLinecap="round shadow-xl" />
+                        <circle cx="50%" cy="50%" r="40%" className="fill-none stroke-emerald-500 stroke-[12] shadow-xl" strokeDasharray="180 251" strokeDashoffset="0" strokeLinecap="round" />
                      </svg>
                      <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <span className="text-2xl font-black">72%</span>

@@ -27,12 +27,13 @@ import {
   Zap,
   Users,
   Inbox as InboxIcon,
-  Circle
+  Circle,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { conversationService, messageService, cannedService } from "@/services/api.service";
+import { conversationService, messageService, cannedService, tagService } from "@/services/api.service";
 import { useUser } from "@/context/user-context";
 
 export default function InboxPage() {
@@ -44,6 +45,7 @@ export default function InboxPage() {
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
+  const [cannedReplies, setCannedReplies] = useState<any[]>([]);
   
   const [isDispositionModalOpen, setIsDispositionModalOpen] = useState(false);
   const [selectedDisposition, setSelectedDisposition] = useState("");

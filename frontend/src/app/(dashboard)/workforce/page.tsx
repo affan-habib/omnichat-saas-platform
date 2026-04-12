@@ -26,6 +26,7 @@ import {
   Award,
   Edit,
   Trash2,
+  Plus,
   Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -147,7 +148,7 @@ export default function WorkforcePage() {
 
   const openEditStaff = (person: any) => {
     setEditingStaff(person);
-    setStaffForm({ name: person.name, email: person.email, role: person.role, teamId: person.teamMemberships?.[0]?.teamId || "" });
+    setStaffForm({ name: person.name, email: person.email, role: person.role, teamId: person.teamMemberships?.[0]?.teamId || "", password: "" });
     setIsEditStaffOpen(true);
   };
 

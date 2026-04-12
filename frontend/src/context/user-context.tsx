@@ -5,7 +5,7 @@ import { authService } from "@/services/api.service";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
 
-export type UserRole = "agent" | "supervisor" | "admin";
+export type UserRole = "agent" | "supervisor" | "admin" | "owner";
 export type Theme = "light" | "dark";
 
 interface UserContextType {
@@ -18,6 +18,7 @@ interface UserContextType {
   toggleTheme: () => void;
   toggleSidebar: () => void;
   logout: () => void;
+  fetchMe: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -33,6 +34,37 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const fetchMe = async () => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const res = await authService.getMe();
+        const userData = res.data;
+        setUser(userData);
+        setRoleState(userData.role.toLowerCase() as UserRole);
+
+        // Force password change if needed
+        if (userData.needsPasswordChange && pathname !== '/reset-password') {
+          router.push('/reset-password');
+        } else if (!userData.needsPasswordChange && pathname === '/reset-password') {
+          router.push('/inbox');
+        }
+      } catch (error) {
+        console.error("Auth check failed", error);
+        localStorage.removeItem("token");
+        if (!pathname.startsWith('/(auth)') && pathname !== '/login') {
+           router.push('/login');
+        }
+      }
+    } else {
+      // Only redirect if we are not on auth pages
+      if (!pathname.startsWith('/register') && pathname !== '/login' && pathname !== '/') {
+         router.push('/login');
+      }
+    }
+    setIsLoading(false);
+  };
+
   useEffect(() => {
     // Load local settings
     const savedRole = localStorage.getItem("omnichat-role") as UserRole;
@@ -47,39 +79,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setThemeState("dark");
     }
     
-    // Auth Check
-    const checkAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const res = await authService.getMe();
-          const userData = res.data;
-          setUser(userData);
-          setRoleState(userData.role.toLowerCase() as UserRole);
-
-          // Force password change if needed
-          if (userData.needsPasswordChange && pathname !== '/reset-password') {
-            router.push('/reset-password');
-          } else if (!userData.needsPasswordChange && pathname === '/reset-password') {
-            router.push('/inbox');
-          }
-        } catch (error) {
-          console.error("Auth check failed", error);
-          localStorage.removeItem("token");
-          if (!pathname.startsWith('/(auth)') && pathname !== '/login') {
-             router.push('/login');
-          }
-        }
-      } else {
-        // Only redirect if we are not on auth pages
-        if (!pathname.startsWith('/register') && pathname !== '/login' && pathname !== '/') {
-           router.push('/login');
-        }
-      }
-      setIsLoading(false);
-    };
-
-    checkAuth();
+    fetchMe();
     setIsMounted(true);
   }, []);
 
@@ -130,7 +130,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setRole, 
       toggleTheme, 
       toggleSidebar,
-      logout
+      logout,
+      fetchMe
     }}>
       {children}
     </UserContext.Provider>

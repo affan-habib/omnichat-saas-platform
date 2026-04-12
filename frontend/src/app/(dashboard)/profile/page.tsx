@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { 
   User as UserIcon, 
@@ -21,6 +22,8 @@ import {
 import { useUser } from "@/context/user-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { workforceService } from "@/services/api.service";
 import { cn } from "@/lib/utils";
 
 export default function ProfilePage() {
@@ -231,7 +234,7 @@ export default function ProfilePage() {
            </div>
         </div>
       </div>
-    </div>
+
 
       {/* EDIT PROFILE MODAL */}
       <AnimatePresence>
@@ -301,3 +304,5 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
