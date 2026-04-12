@@ -1,0 +1,244 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── TENANT ────────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  users           User[]
+  teams           Team[]
+  contacts        Contact[]
+  conversations   Conversation[]
+  cannedResponses CannedResponse[]
+  routingRules    RoutingRule[]
+  tags            Tag[]
+}
+
+// ─── USERS & ROLES ─────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  ADMIN
+  SUPERVISOR
+  AGENT
+}
+
+enum AgentStatus {
+  ONLINE
+  AWAY
+  BUSY
+  OFFLINE
+}
+
+model User {
+  id                 String      @id @default(uuid())
+  tenantId           String
+  email              String      @unique
+  name               String
+  password           String
+  role               Role        @default(AGENT)
+  status             AgentStatus @default(OFFLINE)
+  avatarUrl          String?
+  maxConcurrentChats Int         @default(5)
+  isActive           Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id])
+  teamMemberships  TeamMember[]
+  assignedConversations Conversation[] @relation("AssignedAgent")
+}
+
+// ─── TEAMS ─────────────────────────────────────────────────────────────────────
+
+model Team {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  members       TeamMember[]
+  conversations Conversation[] @relation("AssignedTeam")
+}
+
+model TeamMember {
+  userId   String
+  teamId   String
+  isLead   Boolean  @default(false)
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@id([userId, teamId])
+}
+
+// ─── CONTACTS (CRM) ────────────────────────────────────────────────────────────
+
+model Contact {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  phone       String?
+  email       String?
+  avatarUrl   String?
+  customData  Json?    // Flexible: store any extra CRM fields
+  createdAt   DateTime @default(now())
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  conversations Conversation[]
+
+  @@index([tenantId, phone])
+  @@index([tenantId, email])
+}
+
+// ─── CONVERSATIONS ────────────────────────────────────────────────────────────
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  SNOOZED
+  RESOLVED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Channel {
+  WHATSAPP
+  MESSENGER
+  INSTAGRAM
+  EMAIL
+  WIDGET
+}
+
+model Conversation {
+  id           String             @id @default(uuid())
+  tenantId     String
+  contactId    String
+  assigneeId   String?
+  teamId       String?
+  channel      Channel
+  status       ConversationStatus @default(OPEN)
+  priority     Priority           @default(MEDIUM)
+  subject      String?
+  disposition  String?            // e.g. "General Inquiry", "Billing"
+  firstReplyAt DateTime?
+  resolvedAt   DateTime?
+  snoozedUntil DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  contact  Contact  @relation(fields: [contactId], references: [id])
+  assignee User?    @relation("AssignedAgent", fields: [assigneeId], references: [id])
+  team     Team?    @relation("AssignedTeam", fields: [teamId], references: [id])
+  messages Message[]
+  tags     ConversationTag[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, assigneeId])
+}
+
+// ─── MESSAGES ────────────────────────────────────────────────────────────────
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  AUDIO
+  VIDEO
+  INTERNAL_NOTE  // Whisper — only agents see this
+  ACTIVITY       // System log: "Chat assigned to Agent Smith"
+}
+
+enum SenderType {
+  CONTACT        // Customer
+  AGENT          // Human agent
+  BOT            // AI Agent
+  SYSTEM         // Auto-generated activity
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  conversationId String
+  senderType     SenderType
+  senderId       String?     // userId or null if Contact/Bot
+  content        String
+  type           MessageType @default(TEXT)
+  mediaUrl       String?
+  isRead         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+}
+
+// ─── TAGS ────────────────────────────────────────────────────────────────────
+
+model Tag {
+  id       String @id @default(uuid())
+  tenantId String
+  name     String
+  color    String @default("#6366f1")
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  conversations ConversationTag[]
+}
+
+model ConversationTag {
+  conversationId String
+  tagId          String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  tag          Tag          @relation(fields: [tagId], references: [id])
+
+  @@id([conversationId, tagId])
+}
+
+// ─── CANNED RESPONSES ────────────────────────────────────────────────────────
+
+model CannedResponse {
+  id        String   @id @default(uuid())
+  tenantId  String
+  shortCode String   // e.g. "/shipping"
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// ─── ROUTING RULES ───────────────────────────────────────────────────────────
+
+model RoutingRule {
+  id         String   @id @default(uuid())
+  tenantId   String
+  name       String
+  priority   Int      @default(0)
+  conditions Json     // [{ field: "channel", operator: "eq", value: "WHATSAPP" }]
+  action     Json     // { assignToTeam: "uuid" } or { assignToAgent: "uuid" }
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
