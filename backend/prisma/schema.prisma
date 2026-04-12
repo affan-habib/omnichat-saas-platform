@@ -218,12 +218,14 @@ model ConversationTag {
 // ─── CANNED RESPONSES ────────────────────────────────────────────────────────
 
 model CannedResponse {
-  id        String   @id @default(uuid())
-  tenantId  String
-  shortCode String   // e.g. "/shipping"
-  title     String
-  content   String
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  tenantId   String
+  shortCode  String   // e.g. "/shipping"
+  title      String
+  content    String
+  category   String?  // e.g. "Sales", "Support"
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }

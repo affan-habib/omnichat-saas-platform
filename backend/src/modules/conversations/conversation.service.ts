@@ -1,15 +1,66 @@
 import prisma from '../../config/prisma';
 
-export const getConversations = async (tenantId: string, filters: any) => {
+export const getConversations = async (tenantId: string, filters: any, user: any) => {
   const { status, assigneeId, teamId, channel } = filters;
+  
+  const where: any = {
+    tenantId,
+    status: status || undefined,
+    channel: channel || undefined,
+  };
+
+  // Role-based visibility & Filter Application
+  if (user.role === 'AGENT') {
+    // Agents ONLY see conversations assigned to them
+    where.assigneeId = user.id;
+  } else if (user.role === 'SUPERVISOR') {
+    // Get teams the supervisor belongs to
+    const supervisorTeams = await prisma.teamMember.findMany({
+      where: { userId: user.id },
+      select: { teamId: true }
+    });
+    const teamIds = supervisorTeams.map(st => st.teamId);
+    
+    // Supervisors see team chats OR their own chats
+    const roleBaseQuery = {
+      OR: [
+        { teamId: { in: teamIds } },
+        { assigneeId: user.id }
+      ]
+    };
+
+    // Apply specific filters if provided
+    if (assigneeId === 'null') {
+      where.assigneeId = null;
+    } else if (assigneeId) {
+      where.assigneeId = assigneeId;
+    }
+
+    if (teamId === 'null') {
+      where.teamId = null;
+    } else if (teamId) {
+       where.teamId = teamId;
+    }
+
+    // Merge RBAC with filters
+    where.AND = [roleBaseQuery];
+  } else if (user.role === 'ADMIN' || user.role === 'OWNER') {
+    // Admins see everything, just apply filters
+    if (assigneeId === 'null') {
+      where.assigneeId = null;
+    } else if (assigneeId) {
+      where.assigneeId = assigneeId;
+    }
+
+    if (teamId === 'null') {
+      where.teamId = null;
+    } else if (teamId) {
+      where.teamId = teamId;
+    }
+  }
+
   return await prisma.conversation.findMany({
-    where: {
-      tenantId,
-      status: status || undefined,
-      assigneeId: assigneeId || undefined,
-      teamId: teamId || undefined,
-      channel: channel || undefined,
-    },
+    where,
     include: {
       contact: true,
       assignee: { select: { id: true, name: true, avatarUrl: true } },
@@ -64,5 +115,12 @@ export const transferConversation = async (id: string, tenantId: string, teamId:
   return await prisma.conversation.update({
     where: { id, tenantId },
     data: { teamId, assigneeId: null }
+  });
+};
+
+export const updateStatus = async (id: string, tenantId: string, data: any) => {
+  return await prisma.conversation.update({
+    where: { id, tenantId },
+    data
   });
 };

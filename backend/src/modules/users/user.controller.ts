@@ -4,7 +4,7 @@ import { AuthRequest } from '../../middleware/auth';
 
 export const list = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const users = await userService.getAllUsers(req.user!.tenantId);
+    const users = await userService.getAllUsers(req.user!.tenantId, req.user);
     res.json(users);
   } catch (error) {
     next(error);

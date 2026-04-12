@@ -31,8 +31,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { userService, teamService } from "@/services/api.service";
+import { useUser } from "@/context/user-context";
 
 export default function WorkforcePage() {
+  const { role: userRole } = useUser();
   const [activeTab, setActiveTab] = useState("staff"); // "staff" or "teams"
   const [staff, setStaff] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
@@ -43,6 +45,9 @@ export default function WorkforcePage() {
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
   const [selectedStaffType, setSelectedStaffType] = useState("agent");
+
+  const isAdmin = userRole === 'admin' || userRole === 'owner';
+  const isSupervisor = userRole === 'supervisor';
 
   const permissionCategories = [
     {
@@ -94,20 +99,24 @@ export default function WorkforcePage() {
           <p className="text-muted-foreground font-medium">Unified management of teams, supervisors, and agents in a single command interface.</p>
         </div>
         <div className="flex items-center gap-3">
-           <Button 
-             onClick={() => setIsPermissionModalOpen(true)} 
-             variant="outline" 
-             className="h-12 rounded-2xl font-bold border-border bg-card hover:bg-muted"
-           >
-              Dynamic Permissions
-           </Button>
-           <Button 
-             onClick={() => setIsAddStaffOpen(true)} 
-             className="gap-2 bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-2xl shadow-xl shadow-primary/20"
-           >
-             <UserPlus className="h-5 w-5" />
-             Add Workforce Staff
-           </Button>
+           {isAdmin && (
+             <>
+               <Button 
+                 onClick={() => setIsPermissionModalOpen(true)} 
+                 variant="outline" 
+                 className="h-12 rounded-2xl font-bold border-border bg-card hover:bg-muted"
+               >
+                  Dynamic Permissions
+               </Button>
+               <Button 
+                 onClick={() => setIsAddStaffOpen(true)} 
+                 className="gap-2 bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-2xl shadow-xl shadow-primary/20"
+               >
+                 <UserPlus className="h-5 w-5" />
+                 Add Workforce Staff
+               </Button>
+             </>
+           )}
         </div>
       </div>
 
@@ -211,7 +220,13 @@ export default function WorkforcePage() {
                                </td>
                                <td className="px-8 py-5">
                                   <div className="space-y-1">
-                                     <p className="text-xs font-bold text-foreground">{person.team?.name || 'No Team'}</p>
+                                     <div className="flex flex-wrap gap-1">
+                                        {person.teamMemberships?.map((tm: any) => (
+                                          <span key={tm.teamId} className="text-[10px] font-bold bg-muted px-1.5 py-0.5 rounded">
+                                            {tm.team.name}
+                                          </span>
+                                        )) || <span className="text-muted-foreground text-xs italic">No Team</span>}
+                                     </div>
                                      <div className={cn(
                                        "inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase",
                                        person.role === 'SUPERVISOR' || person.role === 'ADMIN' ? "bg-indigo-500/10 text-indigo-500" : "bg-primary/10 text-primary"
@@ -277,16 +292,20 @@ export default function WorkforcePage() {
                             <p className="text-lg font-black text-primary">{team._count?.routingRules || 0}</p>
                          </div>
                       </div>
-                      <Button onClick={() => toast.info(`Managing ${team.name} roster`)} className="w-full h-11 rounded-xl bg-muted hover:bg-primary hover:text-white transition-all font-bold text-xs uppercase">Manage Team</Button>
+                      {isAdmin && (
+                        <Button onClick={() => toast.info(`Managing ${team.name} roster`)} className="w-full h-11 rounded-xl bg-muted hover:bg-primary hover:text-white transition-all font-bold text-xs uppercase">Manage Team</Button>
+                      )}
                    </CardContent>
                 </Card>
               ))}
-              <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-border rounded-[2.5rem] hover:bg-muted/30 transition-all cursor-pointer group" onClick={() => setIsCreateTeamOpen(true)}>
-                 <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-4 group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                    <UserPlus className="h-8 w-8" />
-                 </div>
-                 <p className="text-lg font-black">Add Team Profile</p>
-              </div>
+              {isAdmin && (
+                <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-border rounded-[2.5rem] hover:bg-muted/30 transition-all cursor-pointer group" onClick={() => setIsCreateTeamOpen(true)}>
+                   <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-4 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                      <UserPlus className="h-8 w-8" />
+                   </div>
+                   <p className="text-lg font-black">Add Team Profile</p>
+                </div>
+              )}
            </div>
          )}
       </div>

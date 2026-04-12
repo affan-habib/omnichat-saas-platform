@@ -10,7 +10,7 @@ export const list = async (req: AuthRequest, res: Response, next: NextFunction) 
       teamId: req.query.teamId,
       channel: req.query.channel,
     };
-    const conversations = await conversationService.getConversations(req.user!.tenantId, filters);
+    const conversations = await conversationService.getConversations(req.user!.tenantId, filters, req.user);
     res.json(conversations);
   } catch (error) {
     next(error);

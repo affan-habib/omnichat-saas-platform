@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { 
   Plus, 
@@ -16,7 +16,9 @@ import {
   Zap,
   Globe,
   Star,
-  ZapIcon
+  ZapIcon,
+  X,
+  Hash
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,14 @@ export default function CannedResponsesPage() {
   const [search, setSearch] = useState("");
   const [replies, setReplies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Create state
+  const [newResponse, setNewResponse] = useState({
+    title: "",
+    shortCode: "/",
+    content: "",
+  });
 
   useEffect(() => {
     fetchReplies();
@@ -45,6 +55,22 @@ export default function CannedResponsesPage() {
     }
   };
 
+  const handleCreate = async () => {
+    if (!newResponse.title || !newResponse.content || !newResponse.shortCode) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    try {
+      await cannedService.create(newResponse);
+      toast.success("Canned response created!");
+      setIsModalOpen(false);
+      setNewResponse({ title: "", shortCode: "/", content: "" });
+      fetchReplies();
+    } catch (error) {
+      toast.error("Failed to create canned response");
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await cannedService.delete(id);
@@ -57,7 +83,7 @@ export default function CannedResponsesPage() {
 
   const filteredReplies = replies.filter(r => 
     r.title.toLowerCase().includes(search.toLowerCase()) || 
-    r.shortcut.toLowerCase().includes(search.toLowerCase()) ||
+    r.shortCode?.toLowerCase().includes(search.toLowerCase()) ||
     r.content.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -68,7 +94,7 @@ export default function CannedResponsesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Canned Responses</h1>
           <p className="text-muted-foreground mt-1">Manage quick-reply templates for your entire team</p>
         </div>
-        <Button onClick={() => toast.info("Create Template modal coming soon")} className="gap-2 shadow-lg shadow-primary/20 bg-primary font-bold h-11 px-6">
+        <Button onClick={() => setIsModalOpen(true)} className="gap-2 shadow-lg shadow-primary/20 bg-primary font-bold h-11 px-6">
           <Plus className="h-5 w-5" />
           Create Template
         </Button>
@@ -103,7 +129,7 @@ export default function CannedResponsesPage() {
                 <div className="flex items-center justify-between mb-2">
                    <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest">
                       <Zap className="h-3 w-3 fill-primary" />
-                      {reply.shortcut}
+                      {reply.shortCode}
                    </div>
                    <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
@@ -130,17 +156,13 @@ export default function CannedResponsesPage() {
                    </button>
                 </div>
               </CardContent>
-              <CardFooter className="pt-0 flex items-center justify-between">
+              <CardFooter className="pt-0 flex items-center justify-between border-t border-border/50 py-3 mt-4">
                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground">
                     <ZapIcon className="h-3 w-3" />
                     Used {reply.usage || 0} times
                  </div>
-                 <div className="flex -space-x-1">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="h-5 w-5 rounded-full ring-2 ring-background bg-muted border border-border overflow-hidden">
-                          <img src={`https://ui-avatars.com/api/?name=Agent+${i}&background=random`} alt="" />
-                       </div>
-                    ))}
+                 <div className="text-[10px] font-medium text-muted-foreground">
+                    {new Date(reply.createdAt).toLocaleDateString()}
                  </div>
               </CardFooter>
             </Card>
@@ -153,7 +175,7 @@ export default function CannedResponsesPage() {
           transition={{ delay: 0.2 }}
           className="h-full"
         >
-          <Card onClick={() => toast.info("Create Template modal coming soon")} className="border-2 border-dashed border-border shadow-none bg-transparent hover:bg-card/50 transition-all cursor-pointer h-full flex flex-col items-center justify-center p-8 text-center group">
+          <Card onClick={() => setIsModalOpen(true)} className="border-2 border-dashed border-border shadow-none bg-transparent hover:bg-card/50 transition-all cursor-pointer h-full flex flex-col items-center justify-center p-8 text-center group">
              <div className="h-16 w-16 rounded-3xl bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Plus className="h-8 w-8 text-primary" />
              </div>
@@ -162,6 +184,65 @@ export default function CannedResponsesPage() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Create Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 30 }} className="relative w-full max-w-lg bg-card border border-border rounded-[2.5rem] shadow-2xl p-8 overflow-hidden">
+               <div className="flex justify-between items-center mb-6">
+                  <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                     <Plus className="h-6 w-6" />
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)}><X className="h-5 w-5" /></Button>
+               </div>
+               <h2 className="text-2xl font-black mb-2">Create Response</h2>
+               <p className="text-muted-foreground text-sm font-medium mb-8">Save standard replies to resolve customers faster.</p>
+
+               <div className="space-y-6">
+                  <div className="space-y-2">
+                     <label className="text-xs font-black uppercase text-muted-foreground ml-1">Template Title</label>
+                     <Input 
+                       placeholder="e.g. Welcome Message" 
+                       className="h-12 rounded-2xl bg-muted border-none" 
+                       value={newResponse.title}
+                       onChange={e => setNewResponse({...newResponse, title: e.target.value})}
+                     />
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-xs font-black uppercase text-muted-foreground ml-1">Shortcut Code</label>
+                     <div className="relative">
+                        <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="/welcome" 
+                          className="pl-12 h-12 rounded-2xl bg-muted border-none" 
+                          value={newResponse.shortCode}
+                          onChange={e => setNewResponse({...newResponse, shortCode: e.target.value})}
+                        />
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-xs font-black uppercase text-muted-foreground ml-1">Body Content</label>
+                     <textarea 
+                       rows={4}
+                       placeholder="Enter the automated response text..." 
+                       className="w-full p-4 rounded-2xl bg-muted border-none outline-none text-sm font-medium resize-none focus:ring-2 focus:ring-primary/20 transition-all"
+                       value={newResponse.content}
+                       onChange={e => setNewResponse({...newResponse, content: e.target.value})}
+                     />
+                     <p className="text-[10px] text-muted-foreground italic px-2">Use placeholder keys like &#123;&#123;customer_name&#125;&#125; for personalization.</p>
+                  </div>
+               </div>
+
+               <div className="flex gap-4 mt-10">
+                  <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                  <Button onClick={handleCreate} className="flex-1 h-12 rounded-2xl bg-primary text-white font-bold shadow-xl shadow-primary/20">Save Template</Button>
+               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <Card className="border-none shadow-lg bg-primary text-white overflow-hidden relative">
          <div className="absolute top-0 right-0 p-12 opacity-10">

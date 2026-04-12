@@ -1,29 +1,40 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { authService } from "@/services/api.service";
+import { toast } from "sonner";
+import { useRouter, usePathname } from "next/navigation";
 
 export type UserRole = "agent" | "supervisor" | "admin";
 export type Theme = "light" | "dark";
 
 interface UserContextType {
+  user: any | null;
   role: UserRole;
   theme: Theme;
   isSidebarCollapsed: boolean;
+  isLoading: boolean;
   setRole: (role: UserRole) => void;
   toggleTheme: () => void;
   toggleSidebar: () => void;
+  logout: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<any | null>(null);
   const [role, setRoleState] = useState<UserRole>("agent");
   const [theme, setThemeState] = useState<Theme>("light");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+  
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Load from localStorage on mount
+    // Load local settings
     const savedRole = localStorage.getItem("omnichat-role") as UserRole;
     const savedTheme = localStorage.getItem("omnichat-theme") as Theme;
     const savedSidebar = localStorage.getItem("omnichat-sidebar-collapsed");
@@ -36,13 +47,37 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setThemeState("dark");
     }
     
+    // Auth Check
+    const checkAuth = async () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const res = await authService.getMe();
+          setUser(res.data);
+          setRoleState(res.data.role.toLowerCase() as UserRole);
+        } catch (error) {
+          console.error("Auth check failed", error);
+          localStorage.removeItem("token");
+          if (!pathname.startsWith('/(auth)') && pathname !== '/login') {
+             router.push('/login');
+          }
+        }
+      } else {
+        // Only redirect if we are not on auth pages
+        if (!pathname.startsWith('/register') && pathname !== '/login' && pathname !== '/') {
+           router.push('/login');
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
     if (!isMounted) return;
     
-    // Apply theme to document
     const root = window.document.documentElement;
     if (theme === "dark") {
       root.classList.add("dark");
@@ -70,14 +105,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const logout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    router.push("/login");
+    toast.success("Successfully logged out");
+  };
+
   return (
     <UserContext.Provider value={{ 
+      user,
       role, 
       theme, 
       isSidebarCollapsed, 
+      isLoading,
       setRole, 
       toggleTheme, 
-      toggleSidebar 
+      toggleSidebar,
+      logout
     }}>
       {children}
     </UserContext.Provider>

@@ -1,9 +1,41 @@
 import prisma from '../../config/prisma';
 import bcrypt from 'bcryptjs';
 
-export const getAllUsers = async (tenantId: string) => {
+export const getAllUsers = async (tenantId: string, currentUser: any) => {
+  const where: any = { tenantId, isActive: true };
+
+  if (currentUser.role === 'SUPERVISOR') {
+    // Get teams the supervisor belongs to
+    const supervisorTeams = await prisma.teamMember.findMany({
+      where: { userId: currentUser.id },
+      select: { teamId: true }
+    });
+    const teamIds = supervisorTeams.map(st => st.teamId);
+
+    where.teamMemberships = {
+      some: {
+        teamId: { in: teamIds }
+      }
+    };
+  } else if (currentUser.role === 'AGENT') {
+     // Agents maybe only see themselves or their team? 
+     // User said "agent will se their messages assigmed to them". 
+     // For user list, maybe agents don't need to see everyone.
+     // I'll limit agents to their team members too.
+     const agentTeams = await prisma.teamMember.findMany({
+       where: { userId: currentUser.id },
+       select: { teamId: true }
+     });
+     const teamIds = agentTeams.map(at => at.teamId);
+     where.teamMemberships = {
+       some: {
+         teamId: { in: teamIds }
+       }
+     };
+  }
+
   return await prisma.user.findMany({
-    where: { tenantId, isActive: true },
+    where,
     select: {
       id: true,
       email: true,
@@ -12,7 +44,10 @@ export const getAllUsers = async (tenantId: string) => {
       status: true,
       avatarUrl: true,
       isActive: true,
-      createdAt: true
+      createdAt: true,
+      teamMemberships: {
+        include: { team: true }
+      }
     }
   });
 };

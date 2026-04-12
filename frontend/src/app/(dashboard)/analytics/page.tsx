@@ -301,13 +301,13 @@ export default function AnalyticsPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center overflow-hidden">
-                             {agent.user.avatarUrl ? (
+                             {agent.user?.avatarUrl ? (
                                <img src={agent.user.avatarUrl} alt="" />
                              ) : (
-                               <span className="text-[10px] font-bold">{agent.user.name?.[0]}</span>
+                               <span className="text-[10px] font-bold">{agent.user?.name?.[0]}</span>
                              )}
                           </div>
-                          <span className="text-xs font-bold group-hover:text-primary transition-colors">{agent.user.name}</span>
+                          <span className="text-xs font-bold group-hover:text-primary transition-colors">{agent.user?.name}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -322,9 +322,9 @@ export default function AnalyticsPage() {
                       <td className="px-6 py-4 text-right">
                         <span className={cn(
                           "inline-flex h-1.5 w-1.5 rounded-full mr-2",
-                          agent.user.status === "ONLINE" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-amber-500"
+                          agent.user?.status === "ONLINE" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-amber-500"
                         )} />
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground">{agent.user.status?.toLowerCase()}</span>
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground">{agent.user?.status?.toLowerCase()}</span>
                       </td>
                     </tr>
                    ))}
