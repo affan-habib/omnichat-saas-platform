@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { 
@@ -23,10 +23,53 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/context/user-context";
+import { tenantService } from "@/services/api.service";
 
 export default function SettingsPage() {
   const { role } = useUser();
   const [isAdminChatting, setIsAdminChatting] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [brandColor, setBrandColor] = useState("#6366f1");
+  const [whiteLabelEnabled, setWhiteLabelEnabled] = useState(false);
+  const [savingOrg, setSavingOrg] = useState(false);
+
+  // Fetch current tenant settings on mount
+  useEffect(() => {
+    const fetchTenant = async () => {
+      try {
+        const res = await tenantService.get();
+        const { name, settings } = res.data;
+        setOrgName(name || "");
+        if (settings) {
+          setBrandColor(settings.brandColor || "#6366f1");
+          setWhiteLabelEnabled(settings.whiteLabelEnabled || false);
+          setIsAdminChatting(settings.adminChatting || false);
+        }
+      } catch {
+        // Not critical — just show defaults
+      }
+    };
+    fetchTenant();
+  }, []);
+
+  const handleSaveOrg = async () => {
+    setSavingOrg(true);
+    try {
+      await tenantService.update({
+        name: orgName,
+        settings: {
+          brandColor,
+          whiteLabelEnabled,
+          adminChatting: isAdminChatting,
+        }
+      });
+      toast.success("Organization settings saved!");
+    } catch {
+      toast.error("Failed to save settings");
+    } finally {
+      setSavingOrg(false);
+    }
+  };
 
   const sections = [
     { id: 'profile', label: 'General Profile', icon: User },
@@ -134,7 +177,7 @@ export default function SettingsPage() {
                          </div>
                          <Switch 
                            checked={isAdminChatting} 
-                           onCheckedChange={setIsAdminChatting}
+                           onCheckedChange={(val) => { setIsAdminChatting(val); }}
                            className="data-[state=checked]:bg-primary"
                          />
                       </div>
@@ -149,30 +192,48 @@ export default function SettingsPage() {
                 </Card>
 
                 <div className="space-y-4">
-                   <h3 className="text-xl font-black italic flex items-center gap-2">
-                       <Zap className="h-5 w-5 text-primary" />
-                       Tenant Branding
-                   </h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4">
-                         <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold">Brand Primary Color</span>
-                            <div className="h-8 w-8 rounded-lg bg-primary border-2 border-white shadow-sm" />
-                         </div>
-                         <Input placeholder="#6366f1" className="bg-muted border-none h-11 rounded-xl font-bold font-mono" />
-                      </div>
-                      <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4">
-                         <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold">White-labeling</span>
-                            <Switch onCheckedChange={() => toast.success("White-label application node activated")} />
-                         </div>
-                         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">Remove 'Powered by OmniChat' branding from consumer touchpoints.</p>
-                      </div>
-                   </div>
-                   <Button onClick={() => toast.success("Organizational attributes synced")} className="w-full bg-primary hover:bg-primary/90 text-white font-black h-12 rounded-2xl shadow-xl shadow-primary/20">
-                      Commit Identity Changes
-                   </Button>
-                </div>
+                    <h3 className="text-xl font-black italic flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-primary" />
+                        Tenant Branding
+                    </h3>
+
+                    <div className="space-y-3">
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Organization Name</label>
+                          <Input
+                            value={orgName}
+                            onChange={e => setOrgName(e.target.value)}
+                            placeholder="Acme Corp"
+                            className="bg-muted border-none h-12 rounded-2xl font-bold"
+                          />
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4">
+                          <div className="flex items-center justify-between">
+                             <span className="text-sm font-bold">Brand Primary Color</span>
+                             <div className="h-8 w-8 rounded-lg border-2 border-white shadow-sm" style={{ backgroundColor: brandColor }} />
+                          </div>
+                          <Input
+                            value={brandColor}
+                            onChange={e => setBrandColor(e.target.value)}
+                            placeholder="#6366f1"
+                            className="bg-muted border-none h-11 rounded-xl font-bold font-mono"
+                          />
+                       </div>
+                       <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4">
+                          <div className="flex items-center justify-between">
+                             <span className="text-sm font-bold">White-labeling</span>
+                             <Switch checked={whiteLabelEnabled} onCheckedChange={setWhiteLabelEnabled} />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">Remove 'Powered by OmniChat' branding from consumer touchpoints.</p>
+                       </div>
+                    </div>
+                    <Button onClick={handleSaveOrg} disabled={savingOrg} className="w-full bg-primary hover:bg-primary/90 text-white font-black h-12 rounded-2xl shadow-xl shadow-primary/20">
+                       {savingOrg ? "Saving..." : "Commit Identity Changes"}
+                    </Button>
+                 </div>
 
                <div className="p-8 border border-amber-500/30 bg-amber-500/10 rounded-3xl space-y-4">
                   <div className="flex items-center gap-3 text-amber-500">

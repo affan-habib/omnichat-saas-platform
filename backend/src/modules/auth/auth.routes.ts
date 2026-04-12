@@ -65,4 +65,30 @@ router.post('/login', authController.login);
  */
 router.get('/me', protect, authController.getMe);
 
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Change own password (requires current password)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string }
+ *     responses:
+ *       200:
+ *         description: Password updated
+ *       400:
+ *         description: Invalid current password
+ */
+router.post('/change-password', protect, authController.changePassword);
+
 export default router;

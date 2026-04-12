@@ -32,3 +32,18 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
     next(error);
   }
 };
+export const changePassword = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+    }
+    const result = await authService.changePassword(req.user!.id, currentPassword, newPassword);
+    res.json(result);
+  } catch (error: any) {
+    if (error.status) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    next(error);
+  }
+};

@@ -17,6 +17,7 @@ import tagRoutes from './modules/tags/tag.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
 import routingRuleRoutes from './modules/routing-rules/routing-rule.routes';
 import auditLogRoutes from './modules/audit-logs/audit-log.routes';
+import tenantRoutes from './modules/tenants/tenant.routes';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/routing-rules', routingRuleRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/tenants', tenantRoutes);
 
 // Error Handler
 app.use(errorHandler);

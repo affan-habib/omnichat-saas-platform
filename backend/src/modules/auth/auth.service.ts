@@ -67,3 +67,20 @@ export const login = async (data: any) => {
 
   return { user, token };
 };
+export const changePassword = async (userId: string, currentPassword: string, newPassword: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
+
+  const isValid = await bcrypt.compare(currentPassword, user.password);
+  if (!isValid) throw Object.assign(new Error('Current password is incorrect'), { status: 400 });
+
+  if (newPassword.length < 6) throw Object.assign(new Error('Password must be at least 6 characters'), { status: 400 });
+
+  const hashed = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: hashed, needsPasswordChange: false }
+  });
+
+  return { message: 'Password updated successfully' };
+};

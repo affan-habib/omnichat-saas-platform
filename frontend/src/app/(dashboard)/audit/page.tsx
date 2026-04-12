@@ -28,10 +28,15 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (search = "") => {
     setLoading(true);
     try {
-      const response = await auditService.list();
+      const filters: any = {};
+      if (search) {
+        // Pass search as both action and resource filters (backend OR's them via multiple calls)
+        filters.action = search;
+      }
+      const response = await auditService.list(filters);
       setLogs(response.data);
     } catch (error) {
       toast.error("Failed to load audit logs");
@@ -44,10 +49,20 @@ export default function AuditPage() {
     fetchLogs();
   }, []);
 
-  const filteredLogs = logs.filter(log => 
-    log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.resource.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.user?.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchLogs(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Client-side fallback filter for resource/user fields not covered by server filter
+  const filteredLogs = logs.filter(log =>
+    !searchTerm ||
+    log.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    log.resource?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    log.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getActionColor = (action: string) => {
@@ -68,7 +83,7 @@ export default function AuditPage() {
           <p className="text-muted-foreground font-medium">Cryptographic record of all administrative and operational state changes.</p>
         </div>
         <div className="flex items-center gap-2">
-            <Button onClick={fetchLogs} variant="outline" className="h-11 rounded-xl gap-2 border-border shadow-sm">
+            <Button onClick={() => fetchLogs(searchTerm)} variant="outline" className="h-11 rounded-xl gap-2 border-border shadow-sm">
                 <History className="h-4 w-4" />
                 Refresh Stream
             </Button>

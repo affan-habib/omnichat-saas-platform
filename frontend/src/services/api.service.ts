@@ -3,14 +3,15 @@ import api from '../lib/api-client';
 export const conversationService = {
   getAll: (filters = {}) => api.get('/conversations', { params: filters }),
   getById: (id: string) => api.get(`/conversations/${id}`),
+  create: (data: any) => api.post('/conversations', data),
   assign: (id: string, assigneeId: string | null) => api.put(`/conversations/${id}/assign`, { assigneeId }),
-  updateStatus: (id: string, status: string, disposition?: string) => 
+  updateStatus: (id: string, status: string, disposition?: string) =>
     api.put(`/conversations/${id}/status`, { status, disposition }),
 };
 
 export const messageService = {
   getByConversation: (conversationId: string) => api.get(`/messages/conversation/${conversationId}`),
-  send: (conversationId: string, content: string, type = 'TEXT') => 
+  send: (conversationId: string, content: string, type = 'TEXT') =>
     api.post(`/messages/conversation/${conversationId}`, { content, type }),
   markRead: (id: string) => api.put(`/messages/${id}/read`),
 };
@@ -19,6 +20,13 @@ export const authService = {
   login: (credentials: any) => api.post('/auth/login', credentials),
   register: (data: any) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
+};
+
+export const tenantService = {
+  get: () => api.get('/tenants/me'),
+  update: (data: any) => api.put('/tenants/me', data),
 };
 
 export const userService = {
@@ -65,7 +73,8 @@ export const tagService = {
 export const workforceService = userService;
 
 export const auditService = {
-  list: () => api.get('/audit-logs'),
+  list: (filters?: { action?: string; resource?: string; userId?: string; from?: string; to?: string }) =>
+    api.get('/audit-logs', { params: filters }),
 };
 
 export const analyticsService = {
