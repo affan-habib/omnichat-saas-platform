@@ -117,35 +117,61 @@ export default function SettingsPage() {
                   <p className="text-muted-foreground font-medium">Global rules for how your team interacts with the system.</p>
                </div>
 
-               <Card className="rounded-[2rem] border-border/50 shadow-md bg-slate-950 text-white overflow-hidden relative">
-                  <div className="absolute top-0 right-0 p-8 opacity-10">
-                     <Shield className="h-32 w-32" />
-                  </div>
-                  <CardHeader>
-                     <CardTitle className="text-white">Admin Capabilities</CardTitle>
-                     <CardDescription className="text-slate-500">Enable or disable core functions for System Administrators.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                     <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
-                        <div>
-                           <p className="text-sm font-bold">Allow Admin to Handle Conversations</p>
-                           <p className="text-[10px] text-slate-500 font-medium">When enabled, admins will appear in the routing pool for incoming chats.</p>
-                        </div>
-                        <Switch 
-                          checked={isAdminChatting} 
-                          onCheckedChange={setIsAdminChatting}
-                          className="data-[state=checked]:bg-primary"
-                        />
-                     </div>
-                     <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 opacity-50">
-                        <div>
-                           <p className="text-sm font-bold">Supervisor Override</p>
-                           <p className="text-[10px] text-slate-500 font-medium">Allow supervisors to take over any active agent session.</p>
-                        </div>
-                        <Switch checked={true} onCheckedChange={() => toast.warning("Override permissions restricted")} />
-                     </div>
-                  </CardContent>
-               </Card>
+                <Card className="rounded-[2.5rem] border-border/50 shadow-md bg-slate-950 text-white overflow-hidden relative">
+                   <div className="absolute top-0 right-0 p-8 opacity-10">
+                      <Shield className="h-32 w-32" />
+                   </div>
+                   <CardHeader>
+                      <CardTitle className="text-white">Admin Capabilities</CardTitle>
+                      <CardDescription className="text-slate-500">Enable or disable core functions for System Administrators.</CardDescription>
+                   </CardHeader>
+                   <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+                         <div>
+                            <p className="text-sm font-bold">Allow Admin to Handle Conversations</p>
+                            <p className="text-[10px] text-slate-500 font-medium">When enabled, admins will appear in the routing pool for incoming chats.</p>
+                         </div>
+                         <Switch 
+                           checked={isAdminChatting} 
+                           onCheckedChange={setIsAdminChatting}
+                           className="data-[state=checked]:bg-primary"
+                         />
+                      </div>
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 opacity-50">
+                         <div>
+                            <p className="text-sm font-bold">Supervisor Override</p>
+                            <p className="text-[10px] text-slate-500 font-medium">Allow supervisors to take over any active agent session.</p>
+                         </div>
+                         <Switch checked={true} onCheckedChange={() => toast.warning("Override permissions restricted")} />
+                      </div>
+                   </CardContent>
+                </Card>
+
+                <div className="space-y-4">
+                   <h3 className="text-xl font-black italic flex items-center gap-2">
+                       <Zap className="h-5 w-5 text-primary" />
+                       Tenant Branding
+                   </h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4">
+                         <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold">Brand Primary Color</span>
+                            <div className="h-8 w-8 rounded-lg bg-primary border-2 border-white shadow-sm" />
+                         </div>
+                         <Input placeholder="#6366f1" className="bg-muted border-none h-11 rounded-xl font-bold font-mono" />
+                      </div>
+                      <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4">
+                         <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold">White-labeling</span>
+                            <Switch onCheckedChange={() => toast.success("White-label application node activated")} />
+                         </div>
+                         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">Remove 'Powered by OmniChat' branding from consumer touchpoints.</p>
+                      </div>
+                   </div>
+                   <Button onClick={() => toast.success("Organizational attributes synced")} className="w-full bg-primary hover:bg-primary/90 text-white font-black h-12 rounded-2xl shadow-xl shadow-primary/20">
+                      Commit Identity Changes
+                   </Button>
+                </div>
 
                <div className="p-8 border border-amber-500/30 bg-amber-500/10 rounded-3xl space-y-4">
                   <div className="flex items-center gap-3 text-amber-500">

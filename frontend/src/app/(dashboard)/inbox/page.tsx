@@ -43,7 +43,7 @@ export default function InboxPage() {
   const [activeScope, setActiveScope] = useState('ALL'); // ALL, MINE, UNASSIGNED
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
-  const [cannedReplies, setCannedReplies] = useState<any[]>([]);
+  const [tags, setTags] = useState<any[]>([]);
   
   const [isDispositionModalOpen, setIsDispositionModalOpen] = useState(false);
   const [selectedDisposition, setSelectedDisposition] = useState("");
@@ -54,6 +54,35 @@ export default function InboxPage() {
 
   const isAdmin = role === 'admin' || role === 'owner';
   const isAgent = role === 'agent';
+
+  // Fetch all available tags
+  const fetchAllTags = async () => {
+    try {
+      const res = await tagService.list();
+      setTags(res.data);
+    } catch (error) {
+       console.error("Failed to fetch tags");
+    }
+  };
+
+  const handleToggleTag = async (tagId: string) => {
+    if (!selectedId || !selectedChat) return;
+    const hasTag = selectedChat.tags?.some((t: any) => t.tagId === tagId);
+    
+    try {
+       if (hasTag) {
+          await tagService.removeFromConversation(selectedId, tagId);
+       } else {
+          await tagService.addToConversation(selectedId, tagId);
+       }
+       // Refresh conversations to get updated tags
+       const filters: any = { status: activeTab };
+       const response = await conversationService.getAll(filters);
+       setConvs(response.data);
+    } catch (error) {
+       toast.error("Failed to update tags");
+    }
+  };
 
   // Fetch conversations
   useEffect(() => {
@@ -67,7 +96,7 @@ export default function InboxPage() {
         } else if (activeScope === 'MINE') {
           filters.assigneeId = user?.id;
         } else if (activeScope === 'UNASSIGNED') {
-          filters.assigneeId = 'null'; // Assuming backend handles 'null' string or null
+          filters.assigneeId = 'null';
         }
 
         const response = await conversationService.getAll(filters);
@@ -82,6 +111,7 @@ export default function InboxPage() {
       }
     };
     fetchConvs();
+    fetchAllTags();
   }, [activeTab, activeScope, user?.id, isAgent]);
 
   // Fetch messages for selected conversation
@@ -593,6 +623,38 @@ export default function InboxPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-10">
+          <div className="space-y-4">
+             <div className="flex items-center justify-between px-1">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Attributes</h4>
+                <div className="h-4 w-4 rounded-full bg-primary/10 flex items-center justify-center">
+                   <Hash className="h-2 w-2 text-primary" />
+                </div>
+             </div>
+             <div className="flex flex-wrap gap-2 p-1">
+                {tags.map((tag) => {
+                   const isActive = selectedChat?.tags?.some((t: any) => t.tagId === tag.id);
+                   return (
+                      <button
+                        key={tag.id}
+                        onClick={() => handleToggleTag(tag.id)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all border shrink-0",
+                          isActive 
+                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105" 
+                            : "bg-muted/40 text-muted-foreground border-transparent hover:border-border hover:bg-muted"
+                        )}
+                        style={isActive ? { backgroundColor: tag.color, borderColor: tag.color } : {}}
+                      >
+                         {tag.name}
+                      </button>
+                   );
+                })}
+                {tags.length === 0 && (
+                   <p className="text-[10px] italic text-muted-foreground">No platform tags available.</p>
+                )}
+             </div>
+          </div>
+
           <div className="space-y-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Customer Identity</h4>
             <div className="space-y-3">

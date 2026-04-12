@@ -56,8 +56,16 @@ export const cannedService = {
 export const tagService = {
   list: () => api.get('/tags'),
   create: (data: any) => api.post('/tags', data),
+  update: (id: string, data: any) => api.put(`/tags/${id}`, data),
+  remove: (id: string) => api.delete(`/tags/${id}`),
   addToConversation: (convoId: string, tagId: string) => api.post(`/tags/conversation/${convoId}`, { tagId }),
   removeFromConversation: (convoId: string, tagId: string) => api.delete(`/tags/conversation/${convoId}/${tagId}`),
+};
+
+export const workforceService = userService;
+
+export const auditService = {
+  list: () => api.get('/audit-logs'),
 };
 
 export const analyticsService = {

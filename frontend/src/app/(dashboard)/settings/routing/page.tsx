@@ -1,225 +1,316 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 import { 
-  Zap, 
-  ArrowRight, 
-  Split, 
-  Clock, 
-  Users, 
-  Settings2, 
+  GitMerge, 
   Plus, 
-  CheckCircle2,
-  AlertCircle,
-  Hash,
-  MessageSquare,
-  Globe,
-  Bot,
-  Info
+  Trash2, 
+  Settings, 
+  Zap, 
+  Shield, 
+  ArrowRight,
+  Filter,
+  Users,
+  MessageCircle,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { routingService, teamService } from "@/services/api.service";
+import { routingService, teamService, workforceService } from "@/services/api.service";
 
-export default function RoutingPage() {
-  const [activeWorkflow, setActiveWorkflow] = useState<string | null>(null);
-  const [workflows, setWorkflows] = useState<any[]>([]);
+export default function RoutingSettingsPage() {
+  const [rules, setRules] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    priority: 0,
+    conditions: [{ field: "channel", operator: "eq", value: "WHATSAPP" }],
+    action: { assignToTeam: "" }
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [wfRes, teamsRes] = await Promise.all([
-          routingService.list(),
-          teamService.list()
-        ]);
-        setWorkflows(wfRes.data);
-        setTeams(teamsRes.data);
-        if (wfRes.data.length > 0) setActiveWorkflow(wfRes.data[0].id);
-      } catch (error) {
-        toast.error("Failed to load routing rules");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  const handleToggle = async (id: string, current: boolean) => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      await routingService.toggle(id, !current);
-      setWorkflows(prev => prev.map(wf => wf.id === id ? { ...wf, isActive: !current } : wf));
-      toast.success(`Workflow ${!current ? 'enabled' : 'disabled'}`);
+      const [rulesRes, teamsRes, staffRes] = await Promise.all([
+        routingService.list(),
+        teamService.list(),
+        workforceService.list()
+      ]);
+      setRules(rulesRes.data);
+      setTeams(teamsRes.data);
+      setStaff(staffRes.data);
     } catch (error) {
-      toast.error("Failed to update workflow status");
+      toast.error("Failed to load routing data");
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreateRule = async () => {
+    if (!formData.name) return toast.error("Rule name is required");
+    try {
+      await routingService.create(formData);
+      toast.success("Routing rule established");
+      setIsModalOpen(false);
+      setFormData({
+        name: "",
+        priority: 0,
+        conditions: [{ field: "channel", operator: "eq", value: "WHATSAPP" }],
+        action: { assignToTeam: "" }
+      });
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to create rule");
+    }
+  };
+
+  const handleDeleteRule = async (id: string) => {
+    if (!confirm("Permanently disable and delete this routing logic?")) return;
+    try {
+      await routingService.remove(id);
+      toast.success("Rule deactivated");
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to delete rule");
+    }
+  };
+
+  const addCondition = () => {
+    setFormData({
+      ...formData,
+      conditions: [...formData.conditions, { field: "content", operator: "contains", value: "" }]
+    });
+  };
+
+  const removeCondition = (index: number) => {
+    const newConds = [...formData.conditions];
+    newConds.splice(index, 1);
+    setFormData({ ...formData, conditions: newConds });
+  };
+
+  const updateCondition = (index: number, key: string, val: any) => {
+    const newConds = [...formData.conditions];
+    newConds[index] = { ...newConds[index], [key]: val };
+    setFormData({ ...formData, conditions: newConds });
+  };
+
   return (
-    <div className="flex min-h-full flex-col bg-background p-8 space-y-8 font-outfit">
+    <div className="flex flex-col bg-background p-8 space-y-8 font-outfit">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-             <Zap className="h-8 w-8 text-primary" />
-             Automation & Routing
+        <div>
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3 italic">
+             <GitMerge className="h-8 w-8 text-primary" />
+             Intelligent Routing
           </h1>
-          <p className="text-muted-foreground font-medium">Configure how task distribution and automatic triggers work across your enterprise.</p>
+          <p className="text-muted-foreground font-medium">Automate conversation assignment based on real-time triggers and metadata.</p>
         </div>
-        <Button onClick={() => toast.info("Launching workflow builder")} className="gap-2 bg-primary hover:bg-primary/90 text-white font-bold h-12 px-6 rounded-2xl shadow-xl shadow-primary/20">
+        <Button onClick={() => setIsModalOpen(true)} className="gap-2 shadow-2xl shadow-primary/30 bg-primary hover:bg-primary/90 text-white font-black h-12 px-6 rounded-2xl uppercase tracking-widest text-xs">
           <Plus className="h-5 w-5" />
-          Create Workflow
+          Establish Rule
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Workflow List */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Active Workflows</h3>
-            <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-1 rounded-full">{workflows.length} Total</span>
-          </div>
+      <div className="grid grid-cols-1 gap-6">
+         {rules.map((rule, idx) => (
+            <motion.div 
+              key={rule.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.1 }}
+            >
+               <Card className="rounded-[2.5rem] border-border shadow-xl bg-card overflow-hidden group hover:border-primary/30 transition-all">
+                  <div className="flex flex-col md:flex-row">
+                     <div className="flex-1 p-8 space-y-4">
+                        <div className="flex items-center gap-3">
+                           <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
+                              {rule.priority}
+                           </div>
+                           <h3 className="text-xl font-black italic">{rule.name}</h3>
+                           {!rule.isActive && (
+                              <span className="text-[10px] font-black uppercase bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Inactive</span>
+                           )}
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-3">
+                           {rule.conditions?.map((cond: any, i: number) => (
+                              <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50 border border-border/50 text-[10px] font-black uppercase tracking-tight">
+                                 <span className="text-primary">{cond.field}</span>
+                                 <span className="text-muted-foreground">{cond.operator}</span>
+                                 <span className="text-foreground">"{cond.value}"</span>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
 
-          <div className="space-y-4">
-            {workflows.map((wf) => (
-              <motion.div 
-                key={wf.id}
-                whileHover={{ y: -2 }}
-                className={cn(
-                  "p-6 rounded-3xl border-2 transition-all cursor-pointer bg-card group",
-                  activeWorkflow === wf.id ? "border-primary shadow-lg" : "border-border/50 hover:border-primary/30"
-                )}
-                onClick={() => setActiveWorkflow(wf.id)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex gap-4">
-                    <div className={cn(
-                      "h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
-                      wf.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                    )}>
-                      <Split className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-lg group-hover:text-primary transition-colors">{wf.name}</h4>
-                      <p className="text-xs text-muted-foreground font-medium line-clamp-1">Created on {new Date(wf.createdAt).toLocaleDateString()}</p>
-                    </div>
+                     <div className="w-px bg-border/50 my-8 hidden md:block" />
+
+                     <div className="p-8 bg-muted/10 flex flex-col justify-center gap-4">
+                        <div className="flex items-center gap-4">
+                           <div className="flex flex-col items-center">
+                              <div className="h-10 w-10 rounded-2xl bg-background border border-border flex items-center justify-center">
+                                 <Zap className="h-5 w-5 text-amber-500" />
+                              </div>
+                              <div className="h-4 w-0.5 bg-border/50" />
+                              <div className="h-10 w-10 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
+                                 {rule.action.assignToTeam ? <Users className="h-5 w-5" /> : <Settings className="h-5 w-5" />}
+                              </div>
+                           </div>
+                           <div>
+                              <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 leading-none tracking-widest">Execute Action</p>
+                              <p className="text-sm font-black italic">
+                                 {rule.action.assignToTeam 
+                                    ? `Assign to Team: ${teams.find(t => t.id === rule.action.assignToTeam)?.name || 'Unknown'}` 
+                                    : `Assign to Agent: ${staff.find(s => s.id === rule.action.assignToAgent)?.name || 'Unknown'}`
+                                 }
+                              </p>
+                           </div>
+                        </div>
+                        <div className="flex gap-2">
+                           <Button onClick={() => toast.info("Rule editing coming soon")} variant="ghost" size="sm" className="h-8 rounded-lg text-[10px] font-black uppercase">Refine</Button>
+                           <Button onClick={() => handleDeleteRule(rule.id)} variant="ghost" size="sm" className="h-8 rounded-lg text-[10px] font-black uppercase text-rose-500 hover:bg-rose-500/10">Deactivate</Button>
+                        </div>
+                     </div>
                   </div>
-                  <Switch checked={wf.isActive} onCheckedChange={() => handleToggle(wf.id, wf.isActive)} />
-                </div>
+               </Card>
+            </motion.div>
+         ))}
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
-                  <div className="p-3 rounded-2xl bg-muted/50 border border-border/50">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Conditions</p>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-xs font-bold truncate">
-                        {JSON.stringify(wf.conditions)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-muted/50 border border-border/50">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Target</p>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-3.5 w-3.5 text-indigo-500" />
-                      <span className="text-xs font-bold truncate">
-                        {teams.find(t => t.id === wf.action?.assignToTeam)?.name || 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-muted/50 border border-border/50 hidden md:block">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Priority Score</p>
-                    <div className="flex items-center gap-2">
-                      <div className={cn(
-                        "h-2 w-2 rounded-full",
-                        wf.priority > 50 ? 'bg-red-500' : wf.priority > 0 ? 'bg-amber-500' : 'bg-slate-400'
-                      )} />
-                      <span className="text-xs font-bold">{wf.priority}</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-            {workflows.length === 0 && (
-              <div className="p-12 text-center border-2 border-dashed border-border rounded-3xl text-muted-foreground">
-                No automation workflows defined.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Global Routing Settings */}
-        <div className="space-y-6">
-           <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground px-2 text-center lg:text-left">Global Strategy</h3>
-           
-           <Card className="rounded-3xl border-border/50 shadow-md bg-card overflow-hidden">
-              <CardContent className="p-8 space-y-6">
-                 <div className="flex items-center justify-between">
-                    <div>
-                       <p className="text-sm font-bold">Round Robin</p>
-                       <p className="text-[10px] text-muted-foreground font-medium">Distribute evenly across available agents</p>
-                    </div>
-                    <Switch checked={true} />
-                 </div>
-                 <div className="flex items-center justify-between">
-                    <div>
-                       <p className="text-sm font-bold">Sticky Sessions</p>
-                       <p className="text-[10px] text-muted-foreground font-medium">Reconnect customers to previous agent</p>
-                    </div>
-                    <Switch checked={true} />
-                 </div>
-                 <div className="flex items-center justify-between">
-                    <div>
-                       <p className="text-sm font-bold">Capacity Based</p>
-                       <p className="text-[10px] text-muted-foreground font-medium">Consider agent concurrent chat load</p>
-                    </div>
-                    <Switch checked={true} />
-                 </div>
-
-                 <div className="pt-6 border-t border-border space-y-4">
-                    <div className="flex items-center justify-between">
-                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Global Capacity Cap</p>
-                       <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                    </div>
-                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/50 border border-border/50">
-                       <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center shadow-sm">
-                          <MessageSquare className="h-5 w-5 text-primary" />
-                       </div>
-                       <div className="flex-1">
-                          <p className="text-xs font-bold">Max Concurrent Chats</p>
-                          <p className="text-[10px] text-muted-foreground font-medium">Global limit per agent session</p>
-                       </div>
-                       <input type="number" defaultValue={5} className="w-12 h-8 rounded-lg bg-background text-center font-bold text-xs border border-border focus:ring-2 focus:ring-primary/20" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">
-                       * When an agent reaches this limit, they will be automatically removed from the active routing pool until a conversation is resolved.
-                    </p>
-                 </div>
-
-                 <Button onClick={() => toast.info("Opening routing configuration")} variant="outline" className="w-full h-12 rounded-2xl font-bold border-border hover:bg-muted mt-2">
-                    <Settings2 className="h-4 w-4 mr-2" />
-                    Advanced Config
-                 </Button>
-              </CardContent>
-           </Card>
-
-           <div className="p-6 rounded-3xl bg-slate-900 text-white relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                 <Bot className="h-20 w-20" />
-              </div>
-              <h4 className="font-bold text-lg mb-2">AI Routing Beta</h4>
-              <p className="text-xs text-slate-400 leading-relaxed mb-6 font-medium">
-                 Enable intent-based routing to automatically categorize chats and send them to the most skilled agent.
-              </p>
-              <Button onClick={() => toast.success("Added to AI Routing waitlist!")} className="w-full h-10 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl text-xs">
-                 Join Waitlist
-              </Button>
-           </div>
-        </div>
+         {rules.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center py-20 bg-muted/20 border-2 border-dashed border-border rounded-[3rem] space-y-4">
+               <div className="h-20 w-20 rounded-[2rem] bg-muted/50 flex items-center justify-center text-muted-foreground">
+                  <Filter className="h-10 w-10 opacity-20" />
+               </div>
+               <div className="text-center">
+                  <h3 className="text-xl font-black italic">No Active Automation</h3>
+                  <p className="text-muted-foreground font-medium text-sm">All incoming conversations will require manual assignment.</p>
+               </div>
+               <Button onClick={() => setIsModalOpen(true)} variant="outline" className="rounded-xl font-bold uppercase text-[10px] tracking-widest h-10 border-primary/20 text-primary">Establish First Rule</Button>
+            </div>
+         )}
       </div>
+
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 30 }} className="relative w-full max-w-2xl bg-card border border-border rounded-[3rem] shadow-2xl p-10 font-outfit max-h-[90vh] overflow-y-auto custom-scrollbar">
+               <div className="flex justify-between items-center mb-10">
+                  <div className="h-16 w-16 rounded-[1.5rem] bg-primary/10 flex items-center justify-center text-primary">
+                     <Zap className="h-10 w-10 shadow-lg" />
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setIsModalOpen(false)} className="h-12 w-12 rounded-full"><X className="h-6 w-6" /></Button>
+               </div>
+               
+               <h2 className="text-3xl font-black mb-2 italic">Automation Node</h2>
+               <p className="text-muted-foreground font-medium mb-8">Define the triggers and outcome for this routing rule.</p>
+
+               <div className="space-y-8">
+                  <div className="grid grid-cols-3 gap-6">
+                     <div className="col-span-2 space-y-2">
+                        <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Logic Label</label>
+                        <Input 
+                           placeholder="WhatsApp Support Assignment" 
+                           className="h-14 rounded-2xl bg-muted border-none font-bold italic" 
+                           value={formData.name}
+                           onChange={e => setFormData({...formData, name: e.target.value})}
+                        />
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">Rank / Priority</label>
+                        <Input 
+                           type="number"
+                           className="h-14 rounded-2xl bg-muted border-none font-black" 
+                           value={formData.priority}
+                           onChange={e => setFormData({...formData, priority: parseInt(e.target.value)})}
+                        />
+                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                     <div className="flex items-center justify-between px-1">
+                        <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Triggers (All must match)</label>
+                        <Button variant="ghost" size="sm" onClick={addCondition} className="text-[10px] font-black uppercase text-primary hover:bg-primary/5 rounded-lg">Add Input</Button>
+                     </div>
+                     <div className="space-y-3">
+                        {formData.conditions.map((cond, i) => (
+                           <div key={i} className="flex gap-2 items-center bg-muted/30 p-2 rounded-2xl border border-border/50">
+                              <select 
+                                 className="flex-1 bg-muted rounded-xl h-10 px-3 text-xs font-bold outline-none border-none"
+                                 value={cond.field}
+                                 onChange={e => updateCondition(i, 'field', e.target.value)}
+                              >
+                                 <option value="channel">Internal Channel</option>
+                                 <option value="content">Message Content</option>
+                                 <option value="subject">Subject Line</option>
+                              </select>
+                              <select 
+                                 className="w-32 bg-muted rounded-xl h-10 px-3 text-[10px] font-black uppercase outline-none border-none"
+                                 value={cond.operator}
+                                 onChange={e => updateCondition(i, 'operator', e.target.value)}
+                              >
+                                 <option value="eq">Equals</option>
+                                 <option value="contains">Contains</option>
+                                 <option value="ne">Not Equals</option>
+                              </select>
+                              <Input 
+                                 placeholder="Value..." 
+                                 className="flex-1 h-10 rounded-xl bg-muted border-none font-bold text-xs"
+                                 value={cond.value}
+                                 onChange={e => updateCondition(i, 'value', e.target.value)}
+                              />
+                              <Button variant="ghost" size="icon" onClick={() => removeCondition(i)} className="h-8 w-8 text-rose-500 shrink-0"><Trash2 className="h-4 w-4" /></Button>
+                           </div>
+                        ))}
+                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                     <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Outcome Action</label>
+                     <div className="p-6 rounded-[2rem] bg-muted/50 border border-primary/20 space-y-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4">
+                           <Zap className="h-4 w-4 text-primary opacity-20" />
+                        </div>
+                        <div className="space-y-2">
+                           <p className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-2">Assign Destination</p>
+                           <select 
+                              className="w-full bg-background rounded-2x border border-border h-12 px-4 text-sm font-bold outline-none"
+                              value={formData.action.assignToTeam}
+                              onChange={e => setFormData({...formData, action: { assignToTeam: e.target.value }})}
+                           >
+                              <option value="">Select Target Team...</option>
+                              {teams.map(t => (
+                                 <option key={t.id} value={t.id}>{t.name} (Team)</option>
+                              ))}
+                           </select>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="flex gap-4 mt-12 pt-8 border-t border-border/50">
+                  <Button variant="outline" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => setIsModalOpen(false)}>Discard</Button>
+                  <Button onClick={handleCreateRule} className="flex-1 h-14 rounded-2xl bg-primary text-white font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-primary/30">Activate Routing Node</Button>
+               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
