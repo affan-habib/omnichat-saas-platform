@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as analyticsController from './analytics.controller';
 import { protect, authorize } from '../../middleware/auth';
+import { cacheMiddleware } from '../../middleware/cache.middleware';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ router.use(authorize('OWNER', 'ADMIN', 'SUPERVISOR'));
  *       200:
  *         description: Overview stats
  */
-router.get('/overview', analyticsController.overview);
+router.get('/overview', cacheMiddleware(60), analyticsController.overview);
 
 /**
  * @swagger
@@ -29,7 +30,7 @@ router.get('/overview', analyticsController.overview);
  *       200:
  *         description: Agent stats
  */
-router.get('/agents', analyticsController.agents);
+router.get('/agents', cacheMiddleware(60), analyticsController.agents);
 
 /**
  * @swagger
@@ -41,7 +42,7 @@ router.get('/agents', analyticsController.agents);
  *       200:
  *         description: Channel stats
  */
-router.get('/channels', analyticsController.channels);
+router.get('/channels', cacheMiddleware(60), analyticsController.channels);
 
 /**
  * @swagger
@@ -53,7 +54,7 @@ router.get('/channels', analyticsController.channels);
  *       200:
  *         description: Disposition stats
  */
-router.get('/dispositions', analyticsController.dispositions);
+router.get('/dispositions', cacheMiddleware(60), analyticsController.dispositions);
 router.get('/reports', analyticsController.getReports);
 
 export default router;

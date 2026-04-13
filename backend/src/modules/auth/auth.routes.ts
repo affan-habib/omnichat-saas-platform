@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import * as authController from './auth.controller';
 import { protect } from '../../middleware/auth';
+import { authLimiter } from '../../middleware/rate-limiter';
 
 const router = Router();
+
+router.post('/register', authLimiter, authController.register);
+router.post('/login', authLimiter, authController.login);
 
 /**
  * @swagger
@@ -27,7 +31,6 @@ const router = Router();
  *       201:
  *         description: Registered successfully
  */
-router.post('/register', authController.register);
 
 /**
  * @swagger
@@ -49,7 +52,6 @@ router.post('/register', authController.register);
  *       200:
  *         description: Login successful
  */
-router.post('/login', authController.login);
 
 /**
  * @swagger

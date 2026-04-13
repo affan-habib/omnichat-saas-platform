@@ -2,6 +2,8 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { redis, subRedis } from '../config/redis';
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -75,6 +77,9 @@ export const initSocket = (httpServer: HTTPServer): SocketIOServer => {
     },
     transports: ['websocket', 'polling']
   });
+
+  // Enable Redis adapter for horizontal scaling
+  io.adapter(createAdapter(redis, subRedis));
 
   // Start background monitoring loop
   if (!monitorInterval) {
