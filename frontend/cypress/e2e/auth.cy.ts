@@ -12,8 +12,30 @@ describe('Authentication', () => {
     cy.get('li').should('exist');
   });
 
+  it('should navigate to registration and create a workspace', () => {
+    cy.contains('Create One').click();
+    cy.url().should('include', '/register');
+    
+    const company = `Test Corp ${Date.now()}`;
+    cy.get('#tenantName').type(company);
+    cy.get('#fullName').type('Test Admin');
+    cy.get('#email').type(`admin@test${Date.now()}.com`);
+    cy.get('#password').type('password123');
+    
+    cy.get('button[type="submit"]').click();
+    cy.get('li').contains('successful').should('exist');
+  });
+
+  it('should navigate to forgot password', () => {
+    cy.contains('Forgot Password?').click();
+    cy.url().should('include', '/forgot-password');
+    cy.get('input[type="email"]').type('test@example.com');
+    cy.get('button[type="submit"]').click();
+    cy.get('li').should('exist');
+  });
+
   it('should login successfully as an agent', () => {
-    cy.get('#email').type('agent1@acme.com');
+    cy.get('#email').type('agent@acme.com');
     cy.get('#password').type('password123');
     cy.get('button[type="submit"]').click();
     
@@ -22,10 +44,10 @@ describe('Authentication', () => {
   });
 
   it('should logout successfully', () => {
-    cy.login('agent1@acme.com');
+    cy.login('agent@acme.com');
     
     // Open settings dropdown
-    cy.get('button').find('svg').filter('.lucide-settings').parent().click();
+    cy.get('button').find('svg.lucide-settings').parent().click();
     
     // Click logout
     cy.contains('Logout Account').click();

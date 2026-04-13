@@ -28,17 +28,17 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@/context/user-context";
 
 const navigation = [
+  // Overview
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["agent", "supervisor", "admin", "superadmin"] },
   // Operations
   { name: "Inbox", href: "/inbox", icon: Inbox, badge: "12", roles: ["agent", "supervisor", "admin", "superadmin"] },
   { name: "CRM", href: "/crm", icon: UserCircle, roles: ["agent", "supervisor", "admin", "superadmin"] },
-  { name: "Canned Replies", href: "/canned-responses", icon: Hash, roles: ["agent", "supervisor", "admin", "superadmin"] },
   // Management
   { name: "Reports", href: "/analytics", icon: BarChart3, roles: ["supervisor", "admin", "superadmin"] },
   { name: "Workforce", href: "/workforce", icon: Users, roles: ["supervisor", "admin", "superadmin"] },
   // Admin
   { name: "Automation", href: "/settings/routing", icon: Zap, roles: ["admin", "superadmin"] },
   { name: "Integrations", href: "/connectors", icon: Plug2, roles: ["admin", "superadmin"] },
-  { name: "Audit Logs", href: "/audit", icon: ShieldCheck, roles: ["admin", "superadmin"] },
   // System
   { name: "Settings", href: "/settings/general", icon: Settings, roles: ["agent", "supervisor", "admin", "superadmin"] },
   // Superadmin Shortcut
