@@ -36,3 +36,7 @@ next-env.d.ts
 
 # Prisma
 /backend/prisma/migrations/
+
+# Cypress
+**/cypress/screenshots
+**/cypress/videos
