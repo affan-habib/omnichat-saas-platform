@@ -34,7 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { conversationService, messageService, cannedService, tagService } from "@/services/api.service";
+import { conversationService, messageService, cannedService, tagService, userService } from "@/services/api.service";
 import { useUser } from "@/context/user-context";
 import { useSocket } from "@/context/socket-context";
 import {
@@ -45,10 +45,11 @@ import {
   sendTypingStart,
   sendTypingStop,
   markConversationRead,
+  setAgentStatus,
 } from "@/lib/socket-client";
 
 export default function InboxPage() {
-  const { user, role } = useUser();
+  const { user, role, fetchMe } = useUser();
   const { socket, isConnected } = useSocket();
   const [convs, setConvs] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -69,6 +70,10 @@ export default function InboxPage() {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
 
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [agentSearch, setAgentSearch] = useState("");
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isDispositionModalOpen, setIsDispositionModalOpen] = useState(false);
   const [selectedDisposition, setSelectedDisposition] = useState("");
   const [dispositionNote, setDispositionNote] = useState("");
@@ -199,6 +204,21 @@ export default function InboxPage() {
     };
     fetchHistory();
   }, [selectedId, selectedChat?.contact?.id]);
+
+  // Fetch agents for transfer modal
+  useEffect(() => {
+    if (isTransferModalOpen) {
+      const fetchAgents = async () => {
+        try {
+          const res = await userService.list();
+          setAgents(res.data);
+        } catch {
+          toast.error("Failed to fetch available agents");
+        }
+      };
+      fetchAgents();
+    }
+  }, [isTransferModalOpen]);
 
   // ── Socket Event Listeners ─────────────────────────────────
   useEffect(() => {
@@ -393,7 +413,7 @@ export default function InboxPage() {
   };
 
   const quickActions = [
-    { label: "Transfer Conversation", icon: Users, color: "text-blue-500" },
+    { label: "Transfer Conversation", icon: Users, color: "text-blue-500", onClick: () => { setIsTransferModalOpen(true); setIsQuickActionsOpen(false); } },
     { label: "Create CRM Ticket", icon: ExternalLink, color: "text-indigo-500" },
     { label: "Send Payment Link", icon: Hash, color: "text-emerald-500" },
     { label: "Block Contact", icon: ShieldCheck, color: "text-rose-500" },
@@ -438,9 +458,60 @@ export default function InboxPage() {
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black font-outfit uppercase tracking-tighter">Inbox</h2>
-            <div className="flex items-center gap-1">
-               <span className="h-2 w-2 rounded-full bg-green-500" />
-               <span className="text-[10px] font-bold text-muted-foreground uppercase">{role}</span>
+            <div className="relative">
+              <button 
+                onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-background border border-border/50 shadow-sm hover:ring-2 hover:ring-primary/20 transition-all"
+              >
+                 <span className={cn(
+                   "h-2 w-2 rounded-full",
+                   user?.status === 'ONLINE' ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" :
+                   user?.status === 'AWAY' ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
+                   user?.status === 'BUSY' ? "bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "bg-slate-400"
+                 )} />
+                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{user?.status || 'ONLINE'}</span>
+              </button>
+
+              <AnimatePresence>
+                {isStatusMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsStatusMenuOpen(false)} />
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                      className="absolute right-0 top-full mt-2 w-36 bg-card border border-border shadow-2xl rounded-2xl p-1.5 z-50 font-outfit"
+                    >
+                      {[
+                        { s: 'ONLINE', c: 'bg-green-500', l: 'Available' },
+                        { s: 'AWAY', c: 'bg-amber-500', l: 'Away' },
+                        { s: 'BUSY', c: 'bg-rose-500', l: 'Do Not Disturb' },
+                        { s: 'OFFLINE', c: 'bg-slate-400', l: 'Appear Offline' }
+                      ].map(status => (
+                        <button
+                          key={status.s}
+                          onClick={async () => {
+                            try {
+                              await userService.updateStatus(user!.id, status.s);
+                              setAgentStatus(status.s as any);
+                              await fetchMe();
+                              toast.success(`Status updated to ${status.s}`);
+                            } catch (err: any) {
+                              console.error("Status update error:", err);
+                              toast.error(`Update failed: ${err.response?.data?.error || err.message}`);
+                            }
+                            setIsStatusMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-muted transition-colors text-left"
+                        >
+                          <span className={cn("h-1.5 w-1.5 rounded-full", status.c)} />
+                          <span className="text-[10px] font-bold tracking-tight">{status.l}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           </div>
           
@@ -1106,6 +1177,86 @@ export default function InboxPage() {
                 >
                   Confirm Resolution
                 </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 5. Transfer Modal */}
+      <AnimatePresence>
+        {isTransferModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setIsTransferModalOpen(false)}
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-card border border-border shadow-2xl rounded-[2.5rem] overflow-hidden p-8 font-outfit"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                   <h2 className="text-xl font-black tracking-tight">Transfer Chat</h2>
+                   <p className="text-xs text-muted-foreground font-medium">Select an agent to take over this conversation</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setIsTransferModalOpen(false)} className="rounded-full">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search agents..." 
+                  value={agentSearch}
+                  onChange={(e) => setAgentSearch(e.target.value)}
+                  className="pl-9 h-11 bg-muted/30 border-transparent rounded-2xl focus-visible:ring-primary/20 transition-all font-medium"
+                />
+              </div>
+
+              <div className="max-h-60 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                {agents
+                  .filter(a => a.id !== user?.id && a.name.toLowerCase().includes(agentSearch.toLowerCase()))
+                  .map(agent => (
+                    <button
+                      key={agent.id}
+                      onClick={async () => {
+                        try {
+                          await conversationService.assign(selectedId!, agent.id);
+                          toast.success(`Transferred to ${agent.name}`);
+                          setIsTransferModalOpen(false);
+                          // Refresh list
+                          const res = await conversationService.getAll({ status: activeTab });
+                          setConvs(res.data);
+                          setSelectedId(null);
+                        } catch {
+                           toast.error("Failed to transfer conversation");
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-primary/5 hover:ring-1 hover:ring-primary/20 transition-all text-left group"
+                    >
+                      <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center overflow-hidden border border-border/50">
+                        {agent.avatarUrl ? <img src={agent.avatarUrl} alt="" /> : <User className="h-5 w-5 text-muted-foreground/50" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-black tracking-tight group-hover:text-primary transition-colors">{agent.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            agent.status === 'ONLINE' ? "bg-green-500" : "bg-slate-400"
+                          )} />
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{agent.status || 'OFFLINE'}</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
+                    </button>
+                  ))}
               </div>
             </motion.div>
           </div>
