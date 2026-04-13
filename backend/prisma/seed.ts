@@ -4,6 +4,23 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
+  console.log('🌱 Starting database cleanup...');
+  // Order matters for relational cleanup
+  await prisma.auditLog.deleteMany();
+  await prisma.routingRule.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.conversationTag.deleteMany();
+  await prisma.conversation.deleteMany();
+  await prisma.tag.deleteMany();
+  await prisma.cannedResponse.deleteMany();
+  await prisma.contact.deleteMany();
+  await prisma.teamMember.deleteMany();
+  await prisma.team.deleteMany();
+  await prisma.connector.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.tenant.deleteMany();
+  console.log('✅ Cleanup complete.');
+
   const password = await bcrypt.hash('password123', 10);
   const adminPassword = await bcrypt.hash('admin123', 10);
 
