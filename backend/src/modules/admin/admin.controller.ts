@@ -9,6 +9,13 @@ export const listTenants = async (req: AuthRequest, res: Response, next: NextFun
   } catch (error) { next(error); }
 };
 
+export const createTenant = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await adminService.createTenantManual(req.body);
+    res.status(201).json(result);
+  } catch (error) { next(error); }
+};
+
 export const updateStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { status } = req.body;

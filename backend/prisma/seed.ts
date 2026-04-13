@@ -4,90 +4,66 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  // Create tenant
-  const tenant = await prisma.tenant.create({
-    data: { 
-      name: 'Acme Corp', 
-      slug: 'acme',
-      status: 'ACTIVE' // Main seed tenant should be active
-    },
+  const password = await bcrypt.hash('password123', 10);
+  const adminPassword = await bcrypt.hash('admin123', 10);
+
+  // 1. TENANT A: Acme Corp
+  const tenantA = await prisma.tenant.create({
+    data: { name: 'Acme Corp', slug: 'acme', status: 'ACTIVE' },
   })
 
-  // Create Superadmin user
-  const superadmin = await prisma.user.create({
+  // 2. TENANT B: Globex Core
+  const tenantB = await prisma.tenant.create({
+    data: { name: 'Globex Core', slug: 'globex', status: 'ACTIVE' },
+  })
+
+  // 3. GLOBAL SUPERADMIN
+  await prisma.user.create({
     data: {
-      tenantId: tenant.id,
+      tenantId: tenantA.id,
       email: 'superadmin@omnichat.com',
-      name: 'Platform Admin',
-      password: await bcrypt.hash('admin123', 10),
+      name: 'Platform Founder',
+      password: adminPassword,
       role: 'SUPERADMIN',
       status: 'ONLINE',
       needsPasswordChange: false,
     },
   })
 
-  // Create admin user
-  const admin = await prisma.user.create({
-    data: {
-      tenantId: tenant.id,
-      email: 'admin@acme.com',
-      name: 'Admin User',
-      password: await bcrypt.hash('password123', 10),
-      role: 'ADMIN',
-      status: 'ONLINE',
-      needsPasswordChange: false,
-    },
-  })
+  // 4. USERS FOR ACME CORP
+  const acmeUsers = [
+    { email: 'admin@acme.com', name: 'Alice Admin', role: 'ADMIN' as const },
+    { email: 'supervisor@acme.com', name: 'Sam Supervisor', role: 'SUPERVISOR' as const },
+    { email: 'agent@acme.com', name: 'Andy Agent', role: 'AGENT' as const },
+  ];
 
-  // Create agents
-  const agent1 = await prisma.user.create({
-    data: {
-      tenantId: tenant.id,
-      email: 'agent1@acme.com',
-      name: 'Sarah Miller',
-      password: await bcrypt.hash('password123', 10),
-      role: 'AGENT',
-      status: 'ONLINE',
-      needsPasswordChange: false,
-    },
-  })
+  for (const u of acmeUsers) {
+    await prisma.user.create({
+      data: { ...u, tenantId: tenantA.id, password, status: 'ONLINE', needsPasswordChange: false }
+    });
+  }
 
-  // Create team
-  const team = await prisma.team.create({
-    data: { tenantId: tenant.id, name: 'Support', color: '#6366f1' },
-  })
+  // 5. USERS FOR GLOBEX CORE
+  const globexUsers = [
+    { email: 'admin@globex.com', name: 'Grace Globex', role: 'ADMIN' as const },
+    { email: 'supervisor@globex.com', name: 'Steve Super', role: 'SUPERVISOR' as const },
+    { email: 'agent@globex.com', name: 'Annie Agent', role: 'AGENT' as const },
+  ];
 
-  await prisma.teamMember.create({
-    data: { userId: agent1.id, teamId: team.id },
-  })
+  for (const u of globexUsers) {
+    await prisma.user.create({
+      data: { ...u, tenantId: tenantB.id, password, status: 'ONLINE', needsPasswordChange: false }
+    });
+  }
 
-  // Create contact & conversation with seeded messages
-  const contact = await prisma.contact.create({
-    data: { tenantId: tenant.id, name: 'John Doe', phone: '+12025550100' },
-  })
-
-  const convo = await prisma.conversation.create({
-    data: {
-      tenantId: tenant.id,
-      contactId: contact.id,
-      assigneeId: agent1.id,
-      teamId: team.id,
-      channel: 'WHATSAPP',
-      status: 'OPEN',
-    },
-  })
-
-  await prisma.message.createMany({
-    data: [
-      { conversationId: convo.id, senderType: 'CONTACT', content: 'Hi, I need help with my order.' },
-      { conversationId: convo.id, senderType: 'AGENT', senderId: agent1.id, content: 'Sure! Can you share your order number?' },
-      { conversationId: convo.id, senderType: 'CONTACT', content: '#ORD-4521' },
-    ],
-  })
-
-  console.log('✅ Seed complete')
+  console.log('✅ Seed Complete: Platform Superadmin + 2 Full Tenants created.');
 }
 
 main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect())
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })

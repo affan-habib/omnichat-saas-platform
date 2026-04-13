@@ -1,4 +1,35 @@
 import prisma from '../../config/prisma';
+import bcrypt from 'bcryptjs';
+
+export const createTenantManual = async (data: any) => {
+  const { tenantName, slug, ownerName, ownerEmail, ownerPassword } = data;
+  const hashedPassword = await bcrypt.hash(ownerPassword, 10);
+
+  return await prisma.$transaction(async (tx) => {
+    const tenant = await tx.tenant.create({
+      data: {
+        name: tenantName,
+        slug: slug,
+        status: 'ACTIVE' // Manually created by Superadmin
+      }
+    });
+
+    const user = await tx.user.create({
+      data: {
+        tenantId: tenant.id,
+        name: ownerName,
+        email: ownerEmail,
+        password: hashedPassword,
+        role: 'OWNER',
+        status: 'ONLINE',
+        isActive: true,
+        needsPasswordChange: true // Force them to change it on first login
+      }
+    });
+
+    return { tenant, user };
+  });
+};
 
 export const getAllTenants = async () => {
   return await prisma.tenant.findMany({

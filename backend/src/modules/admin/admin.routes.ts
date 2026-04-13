@@ -9,6 +9,7 @@ router.use(protect);
 router.use(authorize('SUPERADMIN'));
 
 router.get('/tenants', adminController.listTenants);
+router.post('/tenants', adminController.createTenant);
 router.put('/tenants/:id/status', adminController.updateStatus);
 router.get('/overview', adminController.getOverview);
 router.get('/logs', adminController.getLogs);
