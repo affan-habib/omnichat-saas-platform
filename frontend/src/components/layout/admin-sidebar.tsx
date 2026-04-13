@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useUser } from "@/context/user-context";
 
 const adminNavItems = [
   { icon: LayoutDashboard, label: "Overview", href: "/admin" },
@@ -18,7 +19,8 @@ const adminNavItems = [
 ];
 
 export function AdminSidebar() {
-  const pathname = usePathname();
+  const { role, logout } = useUser();
+  const currentPath = usePathname();
 
   return (
     <div className="w-64 border-r border-border/50 bg-card flex flex-col h-full font-outfit">
@@ -36,10 +38,12 @@ export function AdminSidebar() {
         <nav className="space-y-1">
           {adminNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = currentPath === item.href;
             return (
               <Link key={item.href} href={item.href}>
-                <span className={cn(
+                <span 
+                  data-testid="sidebar-link"
+                  className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all group",
                   isActive 
                     ? "bg-rose-600 text-white shadow-lg shadow-rose-600/20" 

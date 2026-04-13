@@ -4,45 +4,52 @@ describe('Inbox Functionality', () => {
   });
 
   it('should load conversations and send a message', () => {
-    // Check if inbox is loaded
-    cy.get('h2').contains('Inbox').should('exist');
+    // Wait for initial animation
+    cy.get('h2').contains('Inbox').should('be.visible');
     
-    // Select first conversation if any
-    cy.get('button[class*="group relative"]').first().click();
+    // Select the seeded conversation (John Smith)
+    cy.get('[data-testid="convo-item"]').first().click();
+    
+    // Ensure the chat window opens and message feed appears
+    cy.get('textarea[placeholder*="Secure direct reply"]', { timeout: 10000 }).should('be.visible');
     
     // Type and send
-    const message = `Hello from Cypress ${Date.now()}`;
+    const message = `Cypress Automated Test Response ${Date.now()}`;
     cy.get('textarea[placeholder*="Secure direct reply"]').type(message);
     cy.contains('Send Reply').click();
     
-    // Check if message appears
-    cy.contains(message).should('exist');
+    // Check if message appears in the feed
+    cy.contains(message, { timeout: 8000 }).should('be.visible');
   });
 
   it('should filter conversations by status', () => {
-    cy.contains('RESOLVED').click();
-    // Wait for data load
-    cy.get('.space-y-1').should('exist');
+    // Click RESOLVED tab
+    cy.get('button').contains('RESOLVED').click();
+    // Wait for the empty state or data refresh
+    cy.get('button').contains('RESOLVED').should('have.class', 'bg-background');
     
-    cy.contains('OPEN').click();
-    cy.get('.space-y-1').should('exist');
+    // Switch back to OPEN
+    cy.get('button').contains('OPEN').click();
+    cy.get('[data-testid="convo-item"]').should('exist');
   });
 
-  it('should tag a conversation', () => {
-    cy.get('button[class*="group relative"]').first().click();
+  it('should toggle a tag on a conversation', () => {
+    cy.get('[data-testid="convo-item"]').first().click();
     
-    // Look for tags section in right sidebar
-    cy.get('h4').contains('Attributes').should('exist');
+    // Look for tags in the right sidebar
+    cy.contains('Attributes', { timeout: 10000 }).should('be.visible');
     
-    // Toggle first available tag
-    cy.get('button[class*="rounded-xl text-\[10px\] font-black uppercase"]').first().then(($btn) => {
-       const tagName = $btn.text();
+    // Find a tag badge and click it
+    // Using a more generic selector for the tag buttons
+    cy.get('button').contains('VIP').then(($btn) => {
        cy.wrap($btn).click();
-       // Check if it's highlighted (has primary class or style)
-       // This might be tricky due to dynamic styles, but let's assume it works or just check clickability
-       cy.toast('tag updated'); // custom command? no, just a hint. 
-       // Actually let's just wait a bit and re-check
-       cy.contains(tagName).should('exist');
+       // Toast notification logic or just wait for state
+       toastCheck('Tag updated');
     });
   });
 });
+
+function toastCheck(msg: string) {
+  // Simple helper to check for sonner/toast success messages
+  cy.contains(msg, { timeout: 5000 }).should('exist');
+}

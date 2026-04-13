@@ -56,7 +56,33 @@ async function main() {
     });
   }
 
-  console.log('✅ Seed Complete: Platform Superadmin + 2 Full Tenants created.');
+  // 6. SAMPLE DATA FOR ACME
+  const contactA = await prisma.contact.create({
+    data: { tenantId: tenantA.id, name: 'John Smith', email: 'john@example.com' }
+  });
+
+  const agentAcme = await prisma.user.findUnique({ where: { email: 'agent@acme.com' } });
+
+  const convoA = await prisma.conversation.create({
+    data: {
+      tenantId: tenantA.id,
+      contactId: contactA.id,
+      channel: 'WHATSAPP',
+      status: 'OPEN',
+      subject: 'Order inquiry #12345',
+      assigneeId: agentAcme?.id
+    }
+  });
+
+  await prisma.message.create({
+    data: {
+      conversationId: convoA.id,
+      senderType: 'CONTACT',
+      content: 'Hi, when will my order arrive?',
+    }
+  });
+
+  console.log('✅ Seed Complete: Platform Superadmin + 2 Full Tenants + Sample Data created.');
 }
 
 main()

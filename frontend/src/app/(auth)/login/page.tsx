@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   LogIn, Mail, Lock, Terminal, Globe, 
@@ -75,7 +75,7 @@ export default function LoginPage() {
       {/* Left Side: Hero Image */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-slate-900">
         <Image 
-          src="/omnichat_login_hero_1776057609298.png" 
+          src="/images/hero.png" 
           alt="Login Hero" 
           fill 
           className="object-cover opacity-80"

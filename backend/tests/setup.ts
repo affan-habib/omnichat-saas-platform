@@ -28,7 +28,7 @@ module.exports = async () => {
 
   // Seed tenant
   const tenant = await prisma.tenant.create({
-    data: { name: 'Acme Corp', slug: 'acme' }
+    data: { name: 'Acme Corp', slug: 'acme', status: 'ACTIVE' }
   });
 
   // Seed users

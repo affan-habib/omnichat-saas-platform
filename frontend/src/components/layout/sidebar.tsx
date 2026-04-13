@@ -270,7 +270,7 @@ export function Sidebar() {
                 className="flex flex-1 flex-col overflow-hidden"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold truncate capitalize">{role}</span>
+                  <span className="text-sm font-bold truncate">{user?.name || role}</span>
                   <button 
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                     className="h-6 w-6 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"

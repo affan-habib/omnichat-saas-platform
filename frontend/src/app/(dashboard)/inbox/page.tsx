@@ -428,6 +428,7 @@ export default function InboxPage() {
                 <button
                   key={chat.id}
                   onClick={() => setSelectedId(chat.id)}
+                  data-testid="convo-item"
                   className={cn(
                     "w-full flex items-start gap-3 p-3 rounded-[1.5rem] transition-all group relative",
                     selectedId === chat.id 

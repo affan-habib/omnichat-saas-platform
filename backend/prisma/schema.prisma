@@ -69,6 +69,7 @@ model User {
   teamMemberships  TeamMember[]
   assignedConversations Conversation[] @relation("AssignedAgent")
   auditLogs        AuditLog[]
+  messages         Message[]
 }
 
 // ─── TEAMS ─────────────────────────────────────────────────────────────────────
@@ -243,6 +244,7 @@ model Message {
   createdAt      DateTime    @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User?        @relation(fields: [senderId], references: [id])
 
   @@index([conversationId])
 }
