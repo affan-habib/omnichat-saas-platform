@@ -105,4 +105,21 @@ router.put('/:id/transfer', conversationController.transfer);
  */
 router.put('/:id/status', conversationController.updateStatus);
 
+/**
+ * @swagger
+ * /api/conversations/{id}:
+ *   delete:
+ *     summary: Delete a conversation
+ *     tags: [Conversations]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Deleted successfully
+ */
+router.delete('/:id', conversationController.remove);
+
 export default router;

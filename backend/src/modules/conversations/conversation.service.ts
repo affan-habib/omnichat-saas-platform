@@ -1,12 +1,13 @@
 import prisma from '../../config/prisma';
 
 export const getConversations = async (tenantId: string, filters: any, user: any) => {
-  const { status, assigneeId, teamId, channel } = filters;
+  const { status, assigneeId, teamId, channel, contactId } = filters;
   
   const where: any = {
     tenantId,
     status: status || undefined,
     channel: channel || undefined,
+    contactId: contactId || undefined,
   };
 
   // Role-based visibility & Filter Application
@@ -122,5 +123,11 @@ export const updateStatus = async (id: string, tenantId: string, data: any) => {
   return await prisma.conversation.update({
     where: { id, tenantId },
     data
+  });
+};
+
+export const deleteConversation = async (id: string, tenantId: string) => {
+  return await prisma.conversation.delete({
+    where: { id, tenantId }
   });
 };

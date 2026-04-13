@@ -10,6 +10,7 @@ export const list = async (req: AuthRequest, res: Response, next: NextFunction) 
       assigneeId: req.query.assigneeId,
       teamId: req.query.teamId,
       channel: req.query.channel,
+      contactId: req.query.contactId,
     };
     const conversations = await conversationService.getConversations(req.user!.tenantId, filters, req.user);
     res.json(conversations);
@@ -75,3 +76,13 @@ export const updateStatus = async (req: AuthRequest, res: Response, next: NextFu
     next(error);
   }
 };
+
+export const remove = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    await conversationService.deleteConversation(req.params.id, req.user!.tenantId);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+

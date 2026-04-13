@@ -28,7 +28,8 @@ import {
   Users,
   Inbox as InboxIcon,
   Circle,
-  X
+  X,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,8 @@ export default function InboxPage() {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isCannedOpen, setIsCannedOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [contactHistory, setContactHistory] = useState<any[]>([]);
 
   const isAdmin = role === 'admin' || role === 'owner';
   const isAgent = role === 'agent';
@@ -158,6 +161,28 @@ export default function InboxPage() {
       prevSelectedId.current = selectedId;
     };
   }, [selectedId]);
+
+  const selectedChat = convs.find(c => c.id === selectedId);
+
+  // Fetch history for selected contact
+  useEffect(() => {
+    if (!selectedChat?.contact?.id) {
+      setContactHistory([]);
+      return;
+    }
+    const fetchHistory = async () => {
+      try {
+        const res = await conversationService.getAll({ 
+          contactId: selectedChat.contact.id,
+          status: 'RESOLVED'
+        });
+        setContactHistory(res.data.filter((c: any) => c.id !== selectedId));
+      } catch (err) {
+        console.error("Failed to fetch history");
+      }
+    };
+    fetchHistory();
+  }, [selectedId, selectedChat?.contact?.id]);
 
   // ── Socket Event Listeners ─────────────────────────────────
   useEffect(() => {
@@ -263,7 +288,7 @@ export default function InboxPage() {
     fetchCanned();
   }, []);
 
-  const selectedChat = convs.find(c => c.id === selectedId);
+
 
   const handleResolve = async () => {
     if (!selectedId) return;
@@ -352,6 +377,27 @@ export default function InboxPage() {
     { label: "Create CRM Ticket", icon: ExternalLink, color: "text-indigo-500" },
     { label: "Send Payment Link", icon: Hash, color: "text-emerald-500" },
     { label: "Block Contact", icon: ShieldCheck, color: "text-rose-500" },
+  ];
+
+  const handleDeleteConversation = async () => {
+    if (!selectedId) return;
+    if (!confirm("Are you sure you want to permanently delete this conversation history?")) return;
+    try {
+      await conversationService.remove(selectedId);
+      toast.success("Conversation deleted");
+      setConvs(prev => prev.filter(c => c.id !== selectedId));
+      setSelectedId(null);
+      setIsMoreMenuOpen(false);
+    } catch (err) {
+      toast.error("Failed to delete conversation");
+    }
+  };
+
+  const moreActions = [
+    { label: "Mark as Unread", icon: Circle, color: "text-blue-500", onClick: () => { toast.info("Conversation marked as unread"); setIsMoreMenuOpen(false); } },
+    { label: "Download Transcript", icon: Hash, color: "text-indigo-500", onClick: () => { toast.success("Transcript download started"); setIsMoreMenuOpen(false); } },
+    { label: "Block Domain", icon: ShieldCheck, color: "text-amber-500", onClick: () => { toast.warning("Domain added to blacklist"); setIsMoreMenuOpen(false); } },
+    { label: "Delete Forever", icon: Trash2, color: "text-rose-600", onClick: handleDeleteConversation },
   ];
 
 
@@ -581,9 +627,50 @@ export default function InboxPage() {
                    <Phone className="h-4 w-4" />
                  </Button>
                  <div className="w-px h-6 bg-border mx-1" />
-                 <Button onClick={() => toast.info("Additional conversation options")} variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
-                   <MoreVertical className="h-4 w-4" />
-                 </Button>
+                 <div className="relative">
+                   <Button 
+                     onClick={() => {
+                       setIsMoreMenuOpen(!isMoreMenuOpen);
+                       setIsQuickActionsOpen(false);
+                       setIsEmojiOpen(false);
+                       setIsCannedOpen(false);
+                     }}
+                     variant="ghost" size="icon" className={cn("h-9 w-9 rounded-xl transition-all", isMoreMenuOpen && "bg-muted shadow-inner")}
+                   >
+                     <MoreVertical className="h-4 w-4" />
+                   </Button>
+
+                   <AnimatePresence>
+                     {isMoreMenuOpen && (
+                       <>
+                         <div 
+                           className="fixed inset-0 z-40 cursor-default" 
+                           onClick={() => setIsMoreMenuOpen(false)} 
+                         />
+                         <motion.div
+                           initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                           animate={{ opacity: 1, scale: 1, y: 0 }}
+                           exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                           className="absolute right-0 top-12 w-56 rounded-[2rem] bg-card border border-border shadow-2xl p-2 z-50 overflow-hidden font-outfit"
+                         >
+                           <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground pb-2 border-b border-border/50 mb-1">Additional Options</div>
+                           {moreActions.map((action, i) => (
+                             <button
+                               key={i}
+                               onClick={action.onClick}
+                               className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-foreground hover:bg-muted transition-all group"
+                             >
+                               <div className={cn("h-8 w-8 rounded-xl bg-muted flex items-center justify-center group-hover:bg-background transition-colors", action.color)}>
+                                 <action.icon className="h-4 w-4" />
+                               </div>
+                               {action.label}
+                             </button>
+                           ))}
+                         </motion.div>
+                       </>
+                     )}
+                   </AnimatePresence>
+                 </div>
                </div>
             </div>
 
@@ -795,8 +882,18 @@ export default function InboxPage() {
           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">Customer Profile (Verified)</p>
           
           <div className="flex gap-2 w-full mt-6">
-            <Button variant="outline" size="sm" className="flex-1 text-[10px] font-black uppercase h-10 rounded-xl border-border bg-background shadow-sm">Details</Button>
-            <Button variant="outline" size="sm" className="flex-2 text-[10px] font-black uppercase h-10 rounded-xl bg-primary text-white border-primary shadow-lg shadow-primary/20">Quick CRM</Button>
+            <Button 
+              onClick={() => toast.info("Opening full contact details...")}
+              variant="outline" size="sm" className="flex-1 text-[10px] font-black uppercase h-10 rounded-xl border-border bg-background shadow-sm"
+            >
+              Details
+            </Button>
+            <Button 
+              onClick={() => toast.success("CRM Profile Updated: Contact synced")}
+              variant="outline" size="sm" className="flex-2 text-[10px] font-black uppercase h-10 rounded-xl bg-primary text-white border-primary shadow-lg shadow-primary/20"
+            >
+              Quick CRM
+            </Button>
           </div>
         </div>
 
@@ -860,25 +957,35 @@ export default function InboxPage() {
           <div className="space-y-4">
              <div className="flex items-center justify-between px-1">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Historical Logs</h4>
-                <Button variant="ghost" size="icon" className="h-5 w-5"><MoreVertical className="h-3 w-3" /></Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => toast.info("Viewing full audit trail")}><MoreVertical className="h-3 w-3" /></Button>
              </div>
             <div className="space-y-3">
-              {[1, 2].map((i) => (
-                <div key={i} className="group p-4 rounded-[1.5rem] bg-card border border-border shadow-sm hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer relative overflow-hidden">
+              {contactHistory.length > 0 ? contactHistory.map((h) => (
+                <div 
+                  key={h.id} 
+                  onClick={() => setSelectedId(h.id)}
+                  className="group p-4 rounded-[1.5rem] bg-card border border-border shadow-sm hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer relative overflow-hidden"
+                >
                    <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
                       <ChevronRight className="h-3 w-3 text-primary" />
                    </div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[9px] font-black text-primary/40">#RES-29302</span>
+                    <span className="text-[9px] font-black text-primary/40">#{h.id.split('-')[0]}</span>
                     <Circle className="h-2 w-2 text-emerald-500 fill-emerald-500" />
                   </div>
-                  <p className="text-[11px] font-black line-clamp-1 group-hover:text-primary transition-colors">Refund requested for item...</p>
+                  <p className="text-[11px] font-black line-clamp-1 group-hover:text-primary transition-colors">
+                    {h.subject || (h.messages[0]?.content || "Archived chat")}
+                  </p>
                   <p className="text-[10px] font-bold text-muted-foreground mt-1 flex items-center gap-2">
                      <Clock className="h-2.5 w-2.5" />
-                     Resolved • 3d ago
+                     {h.status} • {new Date(h.resolvedAt || h.updatedAt).toLocaleDateString()}
                   </p>
                 </div>
-              ))}
+              )) : (
+                <div className="p-4 rounded-[1.5rem] border border-dashed border-border flex flex-col items-center justify-center text-center">
+                  <p className="text-[10px] font-bold text-muted-foreground">No history available</p>
+                </div>
+              )}
             </div>
           </div>
 

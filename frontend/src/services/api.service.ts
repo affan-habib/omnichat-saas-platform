@@ -7,6 +7,7 @@ export const conversationService = {
   assign: (id: string, assigneeId: string | null) => api.put(`/conversations/${id}/assign`, { assigneeId }),
   updateStatus: (id: string, status: string, disposition?: string) =>
     api.put(`/conversations/${id}/status`, { status, disposition }),
+  remove: (id: string) => api.delete(`/conversations/${id}`),
 };
 
 export const messageService = {
