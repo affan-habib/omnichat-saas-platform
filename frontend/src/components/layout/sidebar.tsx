@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useClickOutside } from "@/hooks/use-click-outside";
 import { 
   MessageSquare, 
   BarChart3, 
@@ -21,7 +22,8 @@ import {
   Zap,
   User,
   Shield,
-  Lock
+  Lock,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +42,7 @@ const navigation = [
   { name: "Automation", href: "/settings/routing", icon: Zap, roles: ["admin", "superadmin"] },
   { name: "Integrations", href: "/connectors", icon: Plug2, roles: ["admin", "superadmin"] },
   // System
+  { name: "Health", href: "/admin/monitor", icon: Activity, roles: ["admin", "superadmin"] },
   { name: "Settings", href: "/settings/general", icon: Settings, roles: ["agent", "supervisor", "admin", "superadmin"] },
   // Superadmin Shortcut
   { name: "Superadmin Portal", href: "/admin", icon: Shield, roles: ["superadmin"] },
@@ -50,6 +53,11 @@ export function Sidebar() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { user, role, isSidebarCollapsed, toggleSidebar } = useUser();
   const [metrics, setMetrics] = useState<any>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  useClickOutside(settingsRef, () => {
+    if (isSettingsOpen) setIsSettingsOpen(false);
+  });
 
   useEffect(() => {
     if (user?.id) {
@@ -265,10 +273,13 @@ export function Sidebar() {
           )}
         </div>
 
-        <div className={cn(
-          "flex items-center p-1 rounded-2xl transition-all",
-          isSidebarCollapsed ? "justify-center" : "gap-3 hover:bg-white/5"
-        )}>
+        <div 
+          ref={settingsRef}
+          className={cn(
+            "flex items-center p-1 rounded-2xl transition-all",
+            isSidebarCollapsed ? "justify-center" : "gap-3 hover:bg-white/5"
+          )}
+        >
           <div className="relative shrink-0">
             <div className="h-10 w-10 rounded-xl bg-slate-800 ring-2 ring-primary ring-offset-2 ring-offset-slate-950 overflow-hidden group-hover:scale-105 transition-transform">
               <img src={`https://ui-avatars.com/api/?name=${role.charAt(0).toUpperCase() + role.slice(1)}&background=0D8ABC&color=fff`} alt="Profile" className="h-full w-full object-cover" />

@@ -1,7 +1,7 @@
 import prisma from '../../config/prisma';
 
 export const getConversations = async (tenantId: string, filters: any, user: any) => {
-  const { status, assigneeId, teamId, channel, contactId } = filters;
+  const { status, assigneeId, teamId, channel, contactId, limit = 20, offset = 0 } = filters;
   
   const where: any = {
     tenantId,
@@ -72,7 +72,9 @@ export const getConversations = async (tenantId: string, filters: any, user: any
       },
       _count: { select: { messages: true } }
     },
-    orderBy: { updatedAt: 'desc' }
+    orderBy: { updatedAt: 'desc' },
+    take: Number(limit),
+    skip: Number(offset)
   });
 };
 

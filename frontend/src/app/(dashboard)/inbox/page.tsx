@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useClickOutside } from "@/hooks/use-click-outside";
 import { toast } from "sonner";
 import { 
   Search, 
@@ -86,6 +87,32 @@ export default function InboxPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLoadingConvs, setIsLoadingConvs] = useState(true);
 
+  // Pagination for Conversations
+  const [convsOffset, setConvsOffset] = useState(0);
+  const [hasMoreConvs, setHasMoreConvs] = useState(true);
+  const [isFetchingMoreConvs, setIsFetchingMoreConvs] = useState(false);
+  const convsObserverRef = useRef<HTMLDivElement>(null);
+
+  // Pagination for Messages
+  const [messagesCursor, setMessagesCursor] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [isFetchingOlderMessages, setIsFetchingOlderMessages] = useState(false);
+  const messagesTopObserverRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Refs for click outside
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+  const quickActionsRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const emojiRef = useRef<HTMLDivElement>(null);
+  const cannedRef = useRef<HTMLDivElement>(null);
+
+  useClickOutside(statusMenuRef, () => setIsStatusMenuOpen(false));
+  useClickOutside(quickActionsRef, () => setIsQuickActionsOpen(false));
+  useClickOutside(moreMenuRef, () => setIsMoreMenuOpen(false));
+  useClickOutside(emojiRef, () => setIsEmojiOpen(false));
+  useClickOutside(cannedRef, () => setIsCannedOpen(false));
+
   const isAdmin = role === 'admin' || role === 'owner';
   const isAgent = role === 'agent';
   const selectedChat = convs.find(c => c.id === selectedId);
@@ -119,23 +146,22 @@ export default function InboxPage() {
     }
   };
 
-  // Fetch conversations
+  // Fetch initial conversations
   useEffect(() => {
     const fetchConvs = async () => {
+      setIsLoadingConvs(true);
+      setConvsOffset(0);
+      setHasMoreConvs(true);
       try {
-        const filters: any = { status: activeTab };
-        
-        // Apply scope logic
-        if (isAgent) {
-          filters.assigneeId = user?.id;
-        } else if (activeScope === 'MINE') {
-          filters.assigneeId = user?.id;
-        } else if (activeScope === 'UNASSIGNED') {
-          filters.assigneeId = 'null';
-        }
+        const filters: any = { status: activeTab, limit: 20, offset: 0 };
+        if (isAgent) filters.assigneeId = user?.id;
+        else if (activeScope === 'MINE') filters.assigneeId = user?.id;
+        else if (activeScope === 'UNASSIGNED') filters.assigneeId = 'null';
 
         const response = await conversationService.getAll(filters);
         setConvs(response.data);
+        if (response.data.length < 20) setHasMoreConvs(false);
+        
         if (response.data.length > 0 && !selectedId) {
           setSelectedId(response.data[0].id);
         } else if (response.data.length === 0) {
@@ -151,18 +177,67 @@ export default function InboxPage() {
     fetchAllTags();
   }, [activeTab, activeScope, user?.id, isAgent]);
 
+  // Fetch more conversations (Infinite Scroll)
+  const fetchMoreConvs = async () => {
+    if (isFetchingMoreConvs || !hasMoreConvs) return;
+    setIsFetchingMoreConvs(true);
+    try {
+      const nextOffset = convsOffset + 20;
+      const filters: any = { status: activeTab, limit: 20, offset: nextOffset };
+      if (isAgent) filters.assigneeId = user?.id;
+      else if (activeScope === 'MINE') filters.assigneeId = user?.id;
+      else if (activeScope === 'UNASSIGNED') filters.assigneeId = 'null';
+
+      const response = await conversationService.getAll(filters);
+      if (response.data.length > 0) {
+        setConvs(prev => [...prev, ...response.data]);
+        setConvsOffset(nextOffset);
+      }
+      if (response.data.length < 20) setHasMoreConvs(false);
+    } catch {
+      toast.error("Failed to load more conversations");
+    } finally {
+      setIsFetchingMoreConvs(false);
+    }
+  };
+
+  // Conversation Scroll Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreConvs && !isFetchingMoreConvs && !isLoadingConvs) {
+          fetchMoreConvs();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (convsObserverRef.current) observer.observe(convsObserverRef.current);
+    return () => observer.disconnect();
+  }, [hasMoreConvs, isFetchingMoreConvs, isLoadingConvs, convsOffset]);
+
   // Fetch messages for selected conversation
   useEffect(() => {
     if (!selectedId) return;
     const fetchMessages = async () => {
       setIsLoadingMessages(true);
+      setMessagesCursor(null);
+      setHasMoreMessages(true);
       try {
-        const response = await messageService.getByConversation(selectedId);
-        setMessages(response.data.reverse()); // Chronological
+        const response = await messageService.getByConversation(selectedId, { limit: 50 });
+        const fetchedMessages = response.data.reverse();
+        setMessages(fetchedMessages);
+        if (response.data.length < 50) setHasMoreMessages(false);
+        if (fetchedMessages.length > 0) {
+          setMessagesCursor(fetchedMessages[0].id); // Oldest message ID as cursor for fetching older
+        }
       } catch (error) {
         toast.error("Failed to fetch messages");
       } finally {
         setIsLoadingMessages(false);
+        // Instant scroll to bottom on first load
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        }, 100);
       }
     };
     fetchMessages();
@@ -182,9 +257,64 @@ export default function InboxPage() {
     };
   }, [selectedId]);
 
-  // Scroll to bottom on message update
+  // Fetch older messages (Infinite Scroll Up)
+  const fetchOlderMessages = async () => {
+    if (isFetchingOlderMessages || !hasMoreMessages || !selectedId || !messagesCursor) return;
+    
+    // Save current scroll height to maintain position
+    const container = scrollContainerRef.current;
+    const previousScrollHeight = container?.scrollHeight || 0;
+
+    setIsFetchingOlderMessages(true);
+    try {
+      const response = await messageService.getByConversation(selectedId, { 
+        limit: 50, 
+        cursor: messagesCursor 
+      });
+      
+      if (response.data.length > 0) {
+        const olderMessages = response.data.reverse();
+        setMessages(prev => [...olderMessages, ...prev]);
+        setMessagesCursor(olderMessages[0].id);
+        
+        // Use timeout to adjust scroll after DOM updates
+        setTimeout(() => {
+          if (container) {
+            container.scrollTop = container.scrollHeight - previousScrollHeight;
+          }
+        }, 0);
+      }
+      if (response.data.length < 50) setHasMoreMessages(false);
+    } catch {
+      toast.error("Failed to load older messages");
+    } finally {
+      setIsFetchingOlderMessages(false);
+    }
+  };
+
+  // Message Top Observer (for scrolling up)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreMessages && !isFetchingOlderMessages && !isLoadingMessages && selectedId) {
+          fetchOlderMessages();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (messagesTopObserverRef.current) observer.observe(messagesTopObserverRef.current);
+    return () => observer.disconnect();
+  }, [hasMoreMessages, isFetchingOlderMessages, isLoadingMessages, selectedId, messagesCursor]);
+
+  // Scroll to bottom on message update
+  const lastMsgIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const latestId = messages[messages.length - 1].id;
+    if (latestId !== lastMsgIdRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      lastMsgIdRef.current = latestId;
+    }
   }, [messages]);
 
 
@@ -462,7 +592,7 @@ export default function InboxPage() {
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black font-outfit uppercase tracking-tighter">Inbox</h2>
-            <div className="relative">
+            <div className="relative" ref={statusMenuRef}>
               <button 
                 onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
                 className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-background border border-border/50 shadow-sm hover:ring-2 hover:ring-primary/20 transition-all"
@@ -478,42 +608,39 @@ export default function InboxPage() {
 
               <AnimatePresence>
                 {isStatusMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsStatusMenuOpen(false)} />
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                      className="absolute right-0 top-full mt-2 w-36 bg-card border border-border shadow-2xl rounded-2xl p-1.5 z-50 font-outfit"
-                    >
-                      {[
-                        { s: 'ONLINE', c: 'bg-green-500', l: 'Available' },
-                        { s: 'AWAY', c: 'bg-amber-500', l: 'Away' },
-                        { s: 'BUSY', c: 'bg-rose-500', l: 'Do Not Disturb' },
-                        { s: 'OFFLINE', c: 'bg-slate-400', l: 'Appear Offline' }
-                      ].map(status => (
-                        <button
-                          key={status.s}
-                          onClick={async () => {
-                            try {
-                              await userService.updateStatus(user!.id, status.s);
-                              setAgentStatus(status.s as any);
-                              await fetchMe();
-                              toast.success(`Status updated to ${status.s}`);
-                            } catch (err: any) {
-                              console.error("Status update error:", err);
-                              toast.error(`Update failed: ${err.response?.data?.error || err.message}`);
-                            }
-                            setIsStatusMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-muted transition-colors text-left"
-                        >
-                          <span className={cn("h-1.5 w-1.5 rounded-full", status.c)} />
-                          <span className="text-[10px] font-bold tracking-tight">{status.l}</span>
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="absolute right-0 top-full mt-2 w-36 bg-card border border-border shadow-2xl rounded-2xl p-1.5 z-50 font-outfit"
+                  >
+                    {[
+                      { s: 'ONLINE', c: 'bg-green-500', l: 'Available' },
+                      { s: 'AWAY', c: 'bg-amber-500', l: 'Away' },
+                      { s: 'BUSY', c: 'bg-rose-500', l: 'Do Not Disturb' },
+                      { s: 'OFFLINE', c: 'bg-slate-400', l: 'Appear Offline' }
+                    ].map(status => (
+                      <button
+                        key={status.s}
+                        onClick={async () => {
+                          try {
+                            await userService.updateStatus(user!.id, status.s);
+                            setAgentStatus(status.s as any);
+                            await fetchMe();
+                            toast.success(`Status updated to ${status.s}`);
+                          } catch (err: any) {
+                            console.error("Status update error:", err);
+                            toast.error(`Update failed: ${err.response?.data?.error || err.message}`);
+                          }
+                          setIsStatusMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-muted transition-colors text-left"
+                      >
+                        <span className={cn("h-1.5 w-1.5 rounded-full", status.c)} />
+                        <span className="text-[10px] font-bold tracking-tight">{status.l}</span>
+                      </button>
+                    ))}
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -632,6 +759,9 @@ export default function InboxPage() {
                   </div>
                 </button>
               ))}
+              <div ref={convsObserverRef} className="h-10 w-full flex items-center justify-center">
+                 {isFetchingMoreConvs && <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />}
+               </div>
               {!isLoadingConvs && convs.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
                    <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -680,7 +810,7 @@ export default function InboxPage() {
                    Resolve
                  </Button>
                  <div className="w-px h-6 bg-border mx-1" />
-                 <div className="relative">
+                 <div className="relative" ref={quickActionsRef}>
                    <Button 
                      onClick={() => {
                        setIsQuickActionsOpen(!isQuickActionsOpen);
@@ -696,11 +826,7 @@ export default function InboxPage() {
                    
                    <AnimatePresence>
                      {isQuickActionsOpen && (
-                       <>
-                         <div 
-                           className="fixed inset-0 z-40 cursor-default" 
-                           onClick={() => setIsQuickActionsOpen(false)} 
-                         />
+                       
                          <motion.div
                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
                            animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -724,7 +850,6 @@ export default function InboxPage() {
                            </button>
                          ))}
                        </motion.div>
-                      </>
                     )}
                   </AnimatePresence>
                 </div>
@@ -732,7 +857,7 @@ export default function InboxPage() {
                    <Phone className="h-4 w-4" />
                  </Button>
                  <div className="w-px h-6 bg-border mx-1" />
-                 <div className="relative">
+                 <div className="relative" ref={moreMenuRef}>
                    <Button 
                      onClick={() => {
                        setIsMoreMenuOpen(!isMoreMenuOpen);
@@ -747,39 +872,39 @@ export default function InboxPage() {
 
                    <AnimatePresence>
                      {isMoreMenuOpen && (
-                       <>
-                         <div 
-                           className="fixed inset-0 z-40 cursor-default" 
-                           onClick={() => setIsMoreMenuOpen(false)} 
-                         />
-                         <motion.div
-                           initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                           animate={{ opacity: 1, scale: 1, y: 0 }}
-                           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                           className="absolute right-0 top-12 w-56 rounded-[2rem] bg-card border border-border shadow-2xl p-2 z-50 overflow-hidden font-outfit"
-                         >
-                           <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground pb-2 border-b border-border/50 mb-1">Additional Options</div>
-                           {moreActions.map((action, i) => (
-                             <button
-                               key={i}
-                               onClick={action.onClick}
-                               className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-foreground hover:bg-muted transition-all group"
-                             >
-                               <div className={cn("h-8 w-8 rounded-xl bg-muted flex items-center justify-center group-hover:bg-background transition-colors", action.color)}>
-                                 <action.icon className="h-4 w-4" />
-                               </div>
-                               {action.label}
-                             </button>
-                           ))}
-                         </motion.div>
-                       </>
+                       <motion.div
+                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                         animate={{ opacity: 1, scale: 1, y: 0 }}
+                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                         className="absolute right-0 top-12 w-56 rounded-[2rem] bg-card border border-border shadow-2xl p-2 z-50 overflow-hidden font-outfit"
+                       >
+                         <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground pb-2 border-b border-border/50 mb-1">Additional Options</div>
+                         {moreActions.map((action, i) => (
+                           <button
+                             key={i}
+                             onClick={action.onClick}
+                             className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-bold text-foreground hover:bg-muted transition-all group"
+                           >
+                             <div className={cn("h-8 w-8 rounded-xl bg-muted flex items-center justify-center group-hover:bg-background transition-colors", action.color)}>
+                               <action.icon className="h-4 w-4" />
+                             </div>
+                             {action.label}
+                           </button>
+                         ))}
+                       </motion.div>
                      )}
                    </AnimatePresence>
                  </div>
                </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-6">
+            <div className="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth" ref={scrollContainerRef}>
+               <div ref={messagesTopObserverRef} className="h-1 w-full" />
+               {isFetchingOlderMessages && (
+                 <div className="flex justify-center pb-4">
+                   <div className="text-[10px] font-bold text-muted-foreground animate-pulse uppercase tracking-widest">Loading history...</div>
+                 </div>
+               )}
               {isLoadingMessages && messages.length === 0 ? (
                 <div className="space-y-6">
                   {Array.from({ length: 4 }).map((_, i) => (
@@ -858,7 +983,7 @@ export default function InboxPage() {
                       <Paperclip className="h-4 w-4" />
                     </Button>
                     
-                    <div className="relative">
+                    <div className="relative" ref={emojiRef}>
                       <Button 
                         onClick={() => {
                           setIsEmojiOpen(!isEmojiOpen);
@@ -872,17 +997,12 @@ export default function InboxPage() {
                       
                       <AnimatePresence>
                         {isEmojiOpen && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-40 cursor-default" 
-                              onClick={() => setIsEmojiOpen(false)} 
-                            />
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                              className="absolute bottom-12 left-0 p-3 rounded-[1.5rem] bg-card border border-border shadow-2xl z-50 grid grid-cols-5 gap-2"
-                            >
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                            className="absolute bottom-12 left-0 p-3 rounded-[1.5rem] bg-card border border-border shadow-2xl z-50 grid grid-cols-5 gap-2"
+                          >
                             {emojis.map(e => (
                               <button 
                                 key={e} 
@@ -892,15 +1012,14 @@ export default function InboxPage() {
                                 {e}
                               </button>
                             ))}
-                            </motion.div>
-                          </>
+                          </motion.div>
                         )}
                       </AnimatePresence>
                     </div>
 
                     <div className="w-px h-5 bg-border mx-2" />
                     
-                    <div className="relative">
+                    <div className="relative" ref={cannedRef}>
                       <Button 
                         onClick={() => {
                           setIsCannedOpen(!isCannedOpen);
@@ -914,17 +1033,12 @@ export default function InboxPage() {
                       
                       <AnimatePresence>
                         {isCannedOpen && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-40 cursor-default" 
-                              onClick={() => setIsCannedOpen(false)} 
-                            />
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.95, y: -20 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                              exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                              className="absolute bottom-12 left-0 w-80 max-h-80 overflow-y-auto rounded-[2rem] bg-card border border-border shadow-2xl p-4 z-50 font-outfit space-y-2 custom-scrollbar"
-                            >
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                            className="absolute bottom-12 left-0 w-80 max-h-80 overflow-y-auto rounded-[2rem] bg-card border border-border shadow-2xl p-4 z-50 font-outfit space-y-2 custom-scrollbar"
+                          >
                              <div className="flex items-center justify-between px-2 pb-2 border-b border-border/50 mb-2">
                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Smart Replies</h4>
                                 <Zap className="h-3 w-3 text-amber-500 fill-amber-500" />
@@ -942,8 +1056,7 @@ export default function InboxPage() {
                                  <div className="truncate">{reply.title}</div>
                                </button>
                              ))}
-                            </motion.div>
-                          </>
+                          </motion.div>
                         )}
                       </AnimatePresence>
                     </div>

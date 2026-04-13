@@ -44,6 +44,7 @@ export default function SettingsPage() {
     email: true,
     desktop: true,
   });
+  const [mfaEnabled, setMfaEnabled] = useState(false);
 
   // Fetch current tenant & user settings on mount
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function SettingsPage() {
       if (user.settings.notifications) {
         setNotifications(user.settings.notifications);
       }
+      setMfaEnabled(user.settings.mfaEnabled ?? false);
     }
 
     const fetchTenant = async () => {
@@ -376,16 +378,36 @@ export default function SettingsPage() {
                    <p className="text-muted-foreground font-medium">Manage your authentication methods and session security.</p>
                 </div>
 
-                <Card className="rounded-3xl border-border/50 shadow-md p-8 text-center space-y-6">
-                   <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                      <Lock className="h-8 w-8 text-primary" />
+                <Card className="rounded-3xl border-border/50 shadow-md p-8 space-y-6">
+                   <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                         <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center">
+                            <Lock className="h-8 w-8 text-primary" />
+                         </div>
+                         <div className="text-left">
+                            <h4 className="text-xl font-bold">Two-Factor Authentication</h4>
+                            <p className="text-sm text-muted-foreground mt-1 max-w-sm">Secure your account with an additional verification layer.</p>
+                         </div>
+                      </div>
+                      <Switch 
+                        checked={mfaEnabled} 
+                        onCheckedChange={(val) => { 
+                          setMfaEnabled(val); 
+                          handleSaveUserSettings({ mfaEnabled: val }); 
+                        }} 
+                      />
                    </div>
-                   <div>
-                      <h4 className="text-xl font-bold">Two-Factor Authentication</h4>
-                      <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">Adding a second layer of security ensures that only you can access your support account.</p>
+                   <div className={cn("overflow-hidden transition-all duration-500", mfaEnabled ? "max-h-40 opacity-100" : "max-h-0 opacity-0")}>
+                      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                            <Smartphone className="h-5 w-5 text-primary" />
+                            <span className="text-sm font-bold text-primary">Authenticator App Attached</span>
+                         </div>
+                         <Button onClick={() => toast.info("Refreshing MFA keys...")} variant="ghost" className="text-xs font-bold text-primary">Reset Keys</Button>
+                      </div>
                    </div>
-                   <Button onClick={() => toast.info("Redirecting to MFA configuration")} className="bg-primary hover:bg-primary/90 text-white font-bold h-12 px-8 rounded-2xl">
-                      Configure MFA
+                   <Button onClick={() => toast.info("Redirecting to MFA configuration")} className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 px-8 rounded-2xl shadow-lg shadow-primary/20">
+                      Configure MFA Method
                    </Button>
                 </Card>
 

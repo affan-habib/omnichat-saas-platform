@@ -46,7 +46,14 @@ export const SOCKET_EVENTS = {
   // Presence
   PRESENCE_UPDATE: 'presence:update',    // server → tenant room (agent online/offline)
   USER_STATUS: 'user:status',            // client → server (agent sets own status)
+
+  // System Monitor
+  MONITOR_JOIN: 'monitor:join',          // client → server
+  MONITOR_METRICS: 'monitor:metrics',    // server → room
+  MONITOR_ALERT: 'monitor:alert',        // server → room
 } as const;
+
+export const monitorRoom = () => 'room:monitor';
 
 // Tenant-scoped broadcast room key
 export const tenantRoom = (tenantId: string) => `tenant:${tenantId}`;
@@ -57,6 +64,7 @@ export const conversationRoom = (convoId: string) => `conv:${convoId}`;
 // ─────────────────────────────────────────────────────────────
 
 let io: SocketIOServer;
+let monitorInterval: NodeJS.Timeout | null = null;
 
 export const initSocket = (httpServer: HTTPServer): SocketIOServer => {
   io = new SocketIOServer(httpServer, {
@@ -67,6 +75,24 @@ export const initSocket = (httpServer: HTTPServer): SocketIOServer => {
     },
     transports: ['websocket', 'polling']
   });
+
+  // Start background monitoring loop
+  if (!monitorInterval) {
+    const { getSystemMetrics, checkThresholds } = require('../modules/system/system.service');
+    monitorInterval = setInterval(async () => {
+      try {
+        const metrics = await getSystemMetrics();
+        io.to(monitorRoom()).emit(SOCKET_EVENTS.MONITOR_METRICS, metrics);
+        
+        const alerts = await checkThresholds(metrics);
+        alerts.forEach((alert: any) => {
+          io.to(monitorRoom()).emit(SOCKET_EVENTS.MONITOR_ALERT, alert);
+        });
+      } catch (err) {
+        console.error('[Monitor] Failed to broadcast metrics', err);
+      }
+    }, 5000);
+  }
 
   // ── JWT Auth Middleware ──────────────────────────────────────
   io.use(async (socket: AuthenticatedSocket, next) => {
@@ -244,6 +270,17 @@ export const initSocket = (httpServer: HTTPServer): SocketIOServer => {
         });
       } catch (err) {
         console.error('[Socket] user:status error', err);
+      }
+    });
+
+    // ── System Monitor ─────────────────────────────────────────
+    socket.on(SOCKET_EVENTS.MONITOR_JOIN, () => {
+      const { role } = socket;
+      if (role === 'SUPERADMIN' || role === 'ADMIN') {
+        socket.join(monitorRoom());
+        console.log(`[Monitor] Account ${userId} subscribed to live system metrics`);
+      } else {
+        socket.emit(SOCKET_EVENTS.ERROR, { message: 'Unauthorized for monitoring' });
       }
     });
 

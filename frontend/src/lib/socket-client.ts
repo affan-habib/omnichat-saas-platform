@@ -29,6 +29,11 @@ export const SOCKET_EVENTS = {
   // Presence
   PRESENCE_UPDATE: 'presence:update',
   USER_STATUS: 'user:status',
+
+  // System Monitor
+  MONITOR_JOIN: 'monitor:join',
+  MONITOR_METRICS: 'monitor:metrics',
+  MONITOR_ALERT: 'monitor:alert',
 } as const;
 
 // ─────────────────────────────────────────────────────────────
@@ -106,4 +111,8 @@ export const markConversationRead = (conversationId: string) => {
 
 export const setAgentStatus = (status: 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE') => {
   socket?.emit(SOCKET_EVENTS.USER_STATUS, { status });
+};
+
+export const joinMonitor = () => {
+  socket?.emit(SOCKET_EVENTS.MONITOR_JOIN);
 };

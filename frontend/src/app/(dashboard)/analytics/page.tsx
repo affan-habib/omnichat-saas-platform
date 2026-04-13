@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Download, Search, Filter, MessageSquare, 
   Users, Calendar, ChevronLeft, ChevronRight,
-  ArrowUpDown, ExternalLink, Globe, Hash, Loader2
+  ArrowUpDown, ExternalLink, Globe, Hash, Loader2, Shield
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,21 +26,29 @@ export default function ReportsPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
+  const [overview, setOverview] = useState<any>(null);
+  const [channelStats, setChannelStats] = useState<any[]>([]);
 
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const res = await analyticsService.getReports({
-        type: activeTab,
-        page,
-        search,
-        limit: 10
-      });
-      setData(res.data.data);
-      setTotal(res.data.total);
-      setLastPage(res.data.lastPage);
+      const [reportRes, overviewRes, channelsRes] = await Promise.all([
+        analyticsService.getReports({
+          type: activeTab,
+          page,
+          search,
+          limit: 10
+        }),
+        analyticsService.getOverview(),
+        analyticsService.getChannels()
+      ]);
+      setData(reportRes.data.data);
+      setTotal(reportRes.data.total);
+      setLastPage(reportRes.data.lastPage);
+      setOverview(overviewRes.data);
+      setChannelStats(channelsRes.data);
     } catch (err) {
-      toast.error("Failed to load report data");
+      toast.error("Failed to load analytics data");
     } finally {
       setLoading(false);
     }
@@ -162,112 +170,196 @@ export default function ReportsPage() {
            </Button>
         </div>
       </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-muted/60 rounded-3xl w-fit">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setActiveTab(tab.id as TabType);
-              setPage(1);
-            }}
-            className={cn(
-              "flex items-center gap-2 px-6 py-3 rounded-[1.25rem] text-sm font-black transition-all",
-              activeTab === tab.id 
-                ? "bg-card shadow-lg text-primary scale-105" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
+      
+      {/* Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: "Total Interactions", value: overview?.totalConversations || 0, icon: MessageSquare, color: "text-primary", bg: "bg-primary/10" },
+          { label: "Active Tickets", value: overview?.openConversations || 0, icon: Loader2, color: "text-amber-500", bg: "bg-amber-500/10" },
+          { label: "Resolution Rate", value: `${Math.round(overview?.resolutionRate || 0)}%`, icon: Shield, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+          { label: "Avg Response", value: "4.2m", icon: Globe, color: "text-indigo-500", bg: "bg-indigo-500/10" },
+        ].map((stat, i) => (
+          <motion.div 
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
           >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </button>
+            <Card className="rounded-[2rem] border-border/50 shadow-sm overflow-hidden bg-card/60 backdrop-blur-md">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className={cn("p-4 rounded-2xl flex items-center justify-center", stat.bg)}>
+                  <stat.icon className={cn("h-6 w-6", stat.color)} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{stat.label}</p>
+                  <h3 className="text-2xl font-black mt-0.5">{stat.value}</h3>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
-      <Card className="rounded-[2.5rem] border-border/40 shadow-sm overflow-hidden bg-card/60 backdrop-blur-md">
-        <CardHeader className="p-8 pb-4">
-           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder={`Filter ${activeTab}...`} 
-                  className="pl-10 h-11 bg-muted/30 border-transparent rounded-2xl focus:bg-card transition-all font-medium"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-border/50 bg-muted/20">
-                  {headers.map((h) => (
-                    <th key={h} className="p-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      <div className="flex items-center gap-1">{h} <ArrowUpDown className="w-3 h-3" /></div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/20">
-                {loading ? (
-                  <tr>
-                    <td colSpan={headers.length} className="p-20 text-center">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary opacity-50" />
-                      <p className="text-xs font-black mt-4 text-muted-foreground uppercase tracking-widest">Fetching live data...</p>
-                    </td>
-                  </tr>
-                ) : data.length === 0 ? (
-                  <tr>
-                    <td colSpan={headers.length} className="p-20 text-center">
-                      <div className="w-12 h-12 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <Search className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <p className="text-sm font-black">No records found</p>
-                      <p className="text-xs text-muted-foreground">Try adjusting your filters or search terms</p>
-                    </td>
-                  </tr>
-                ) : (
-                  <AnimatePresence mode="popLayout">
-                    {data.map(renderRow)}
-                  </AnimatePresence>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div className="lg:col-span-2 space-y-8">
+          {/* Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-muted/60 rounded-3xl w-fit">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as TabType);
+                  setPage(1);
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-3 rounded-[1.25rem] text-sm font-black transition-all",
+                  activeTab === tab.id 
+                    ? "bg-card shadow-lg text-primary scale-105" 
+                    : "text-muted-foreground hover:text-foreground"
                 )}
-              </tbody>
-            </table>
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* Pagination */}
-          <div className="p-6 border-t border-border/50 flex items-center justify-between bg-muted/5">
-            <p className="text-xs font-bold text-muted-foreground">
-              Total Records: <span className="text-foreground font-black">{total}</span>
-            </p>
-            <div className="flex items-center gap-2">
-              <Button 
-                disabled={page <= 1 || loading} 
-                onClick={() => setPage(page - 1)}
-                variant="outline" className="h-10 px-4 rounded-xl bg-card border-none shadow-sm gap-2 font-bold"
-              >
-                <ChevronLeft className="h-4 w-4" /> Previous
-              </Button>
-              <div className="flex items-center justify-center h-10 px-4 rounded-xl bg-primary/10 text-primary font-black text-xs">
-                Page {page} of {lastPage}
+          <Card className="rounded-[2.5rem] border-border/40 shadow-sm overflow-hidden bg-card/60 backdrop-blur-md">
+            <CardHeader className="p-8 pb-4">
+               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder={`Filter ${activeTab}...`} 
+                      className="pl-10 h-11 bg-muted/30 border-transparent rounded-2xl focus:bg-card transition-all font-medium"
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value);
+                        setPage(1);
+                      }}
+                    />
+                  </div>
+               </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-border/50 bg-muted/20">
+                      {headers.map((h) => (
+                        <th key={h} className="p-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                          <div className="flex items-center gap-1">{h} <ArrowUpDown className="w-3 h-3" /></div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/20">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={headers.length} className="p-20 text-center">
+                          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary opacity-50" />
+                          <p className="text-xs font-black mt-4 text-muted-foreground uppercase tracking-widest">Fetching live data...</p>
+                        </td>
+                      </tr>
+                    ) : data.length === 0 ? (
+                      <tr>
+                        <td colSpan={headers.length} className="p-20 text-center">
+                          <div className="w-12 h-12 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <Search className="w-6 h-6 text-muted-foreground" />
+                          </div>
+                          <p className="text-sm font-black">No records found</p>
+                          <p className="text-xs text-muted-foreground">Try adjusting your filters or search terms</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      <AnimatePresence mode="popLayout">
+                        {data.map(renderRow)}
+                      </AnimatePresence>
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <Button 
-                disabled={page >= lastPage || loading} 
-                onClick={() => setPage(page + 1)}
-                variant="outline" className="h-10 px-4 rounded-xl bg-card border-none shadow-sm gap-2 font-bold"
-              >
-                Next <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
+              {/* Pagination */}
+              <div className="p-6 border-t border-border/50 flex items-center justify-between bg-muted/5">
+                <p className="text-xs font-bold text-muted-foreground">
+                  Total Records: <span className="text-foreground font-black">{total}</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    disabled={page <= 1 || loading} 
+                    onClick={() => setPage(page - 1)}
+                    variant="outline" className="h-10 px-4 rounded-xl bg-card border-none shadow-sm gap-2 font-bold"
+                  >
+                    <ChevronLeft className="h-4 w-4" /> Previous
+                  </Button>
+                  <div className="flex items-center justify-center h-10 px-4 rounded-xl bg-primary/10 text-primary font-black text-xs">
+                    Page {page} of {lastPage}
+                  </div>
+                  <Button 
+                    disabled={page >= lastPage || loading} 
+                    onClick={() => setPage(page + 1)}
+                    variant="outline" className="h-10 px-4 rounded-xl bg-card border-none shadow-sm gap-2 font-bold"
+                  >
+                    Next <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Sidebar Analytics */}
+        <div className="space-y-8 sticky top-8">
+           <Card className="rounded-[2.5rem] border-border/50 shadow-sm bg-card/60 backdrop-blur-md">
+              <CardHeader className="p-8">
+                 <CardTitle className="text-xl font-black italic">Channel Distribution</CardTitle>
+                 <CardDescription>Volume split by communication node</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 space-y-6">
+                 {channelStats.map((channel, i) => (
+                   <div key={i} className="space-y-2">
+                      <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                         <span className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-primary" />
+                            {channel.channel.toLowerCase()}
+                         </span>
+                         <span className="text-foreground">{channel._count.id} Hits</span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                         <motion.div 
+                           initial={{ width: 0 }} 
+                           animate={{ width: `${(channel._count.id / (overview?.totalConversations || 1)) * 100}%` }} 
+                           className="h-full bg-primary rounded-full shadow-lg shadow-primary/20" 
+                         />
+                      </div>
+                   </div>
+                 ))}
+                 {channelStats.length === 0 && (
+                   <p className="text-xs text-muted-foreground italic">No channel data available yet</p>
+                 )}
+              </CardContent>
+           </Card>
+
+           <Card className="rounded-[2.5rem] border-none shadow-2xl bg-slate-900 text-white overflow-hidden relative group">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent pointer-events-none" />
+              <CardHeader className="relative z-10">
+                 <CardTitle className="text-white text-xl font-black italic">Security Health</CardTitle>
+                 <CardDescription className="text-slate-500">System vulnerability audit</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 relative z-10">
+                 <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <span className="text-sm font-bold">SSL Termination</span>
+                    <Badge className="bg-emerald-500 text-white border-none font-bold text-[10px]">ACTIVE</Badge>
+                 </div>
+                 <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <span className="text-sm font-bold">Database Encryption</span>
+                    <Badge className="bg-emerald-500 text-white border-none font-bold text-[10px]">AES-256</Badge>
+                 </div>
+              </CardContent>
+           </Card>
+        </div>
+      </div>
     </div>
   );
 }

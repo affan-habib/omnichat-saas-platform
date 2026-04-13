@@ -11,6 +11,8 @@ export const list = async (req: AuthRequest, res: Response, next: NextFunction) 
       teamId: req.query.teamId,
       channel: req.query.channel,
       contactId: req.query.contactId,
+      limit: req.query.limit,
+      offset: req.query.offset,
     };
     const conversations = await conversationService.getConversations(req.user!.tenantId, filters, req.user);
     res.json(conversations);

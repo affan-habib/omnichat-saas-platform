@@ -11,7 +11,7 @@ export const conversationService = {
 };
 
 export const messageService = {
-  getByConversation: (conversationId: string) => api.get(`/messages/conversation/${conversationId}`),
+  getByConversation: (conversationId: string, params = {}) => api.get(`/messages/conversation/${conversationId}`, { params }),
   send: (conversationId: string, content: string, type = 'TEXT') =>
     api.post(`/messages/conversation/${conversationId}`, { content, type }),
   markRead: (id: string) => api.put(`/messages/${id}/read`),
