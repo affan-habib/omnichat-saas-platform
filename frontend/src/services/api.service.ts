@@ -82,6 +82,7 @@ export const analyticsService = {
   getAgents: () => api.get('/analytics/agents'),
   getChannels: () => api.get('/analytics/channels'),
   getDispositions: () => api.get('/analytics/dispositions'),
+  getReports: (params: any) => api.get('/analytics/reports', { params }),
 };
 
 export const routingService = {

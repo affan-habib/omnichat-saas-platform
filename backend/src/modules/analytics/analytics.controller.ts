@@ -37,3 +37,12 @@ export const dispositions = async (req: AuthRequest, res: Response, next: NextFu
     next(error);
   }
 };
+
+export const getReports = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const reports = await analyticsService.getPaginatedReport(req.user!.tenantId, req.query);
+    res.json(reports);
+  } catch (error) {
+    next(error);
+  }
+};

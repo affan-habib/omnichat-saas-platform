@@ -54,5 +54,6 @@ router.get('/channels', analyticsController.channels);
  *         description: Disposition stats
  */
 router.get('/dispositions', analyticsController.dispositions);
+router.get('/reports', analyticsController.getReports);
 
 export default router;
