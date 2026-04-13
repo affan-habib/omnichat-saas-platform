@@ -62,6 +62,12 @@ export default function InboxPage() {
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({}); // convoId → unread count
   const typingTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const prevSelectedId = useRef<string | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   const [isDispositionModalOpen, setIsDispositionModalOpen] = useState(false);
   const [selectedDisposition, setSelectedDisposition] = useState("");
@@ -71,6 +77,7 @@ export default function InboxPage() {
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [contactHistory, setContactHistory] = useState<any[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   const isAdmin = role === 'admin' || role === 'owner';
   const isAgent = role === 'agent';
@@ -139,11 +146,14 @@ export default function InboxPage() {
   useEffect(() => {
     if (!selectedId) return;
     const fetchMessages = async () => {
+      setIsLoadingMessages(true);
       try {
         const response = await messageService.getByConversation(selectedId);
         setMessages(response.data.reverse()); // Chronological
       } catch (error) {
         toast.error("Failed to fetch messages");
+      } finally {
+        setIsLoadingMessages(false);
       }
     };
     fetchMessages();
@@ -162,6 +172,11 @@ export default function InboxPage() {
       prevSelectedId.current = selectedId;
     };
   }, [selectedId]);
+
+  // Scroll to bottom on message update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
 
 
@@ -191,8 +206,12 @@ export default function InboxPage() {
 
     // New message in current conversation
     const onMessageNew = (message: any) => {
-      if (message.conversationId === selectedId) {
-        setMessages(prev => [...prev, message]);
+      if (message.conversationId === selectedIdRef.current) {
+        setMessages(prev => {
+          // Check for exact ID match to prevent duplicates (e.g. from socket after REST fallback)
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
         // Auto-mark read if we're looking at this convo
         markConversationRead(message.conversationId);
       } else {
@@ -676,7 +695,12 @@ export default function InboxPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
-              {messages.map((msg) => (
+              {isLoadingMessages && messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full space-y-4 opacity-50">
+                    <div className="h-4 w-4 rounded-full bg-primary animate-ping" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Loading Records...</p>
+                  </div>
+               ) : messages.map((msg) => (
                 <div key={msg.id} className={cn(
                   "flex w-full group",
                   msg.senderType === 'CONTACT' ? "justify-start" : "justify-end"
@@ -704,6 +728,7 @@ export default function InboxPage() {
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Typing Indicator */}
