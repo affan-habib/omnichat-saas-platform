@@ -1,11 +1,15 @@
 import { createServer } from 'http';
 import app from './app';
 import { initSocket } from './socket/socket.server';
+import { initNotificationWorker } from './workers/notification.worker';
 
 const PORT = process.env.PORT || 4000;
 
 // Create HTTP server wrapping the Express app
 const httpServer = createServer(app);
+
+// Initialize Background Workers
+initNotificationWorker();
 
 // Attach Socket.io to the same HTTP server
 initSocket(httpServer);

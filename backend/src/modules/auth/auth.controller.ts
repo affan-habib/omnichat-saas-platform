@@ -2,10 +2,22 @@ import { Request, Response, NextFunction } from 'express';
 import * as authService from './auth.service';
 import { AuthRequest } from '../../middleware/auth';
 import prisma from '../../config/prisma';
+import { notificationQueue } from '../../config/queues';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await authService.registerTenant(req.body);
+    
+    // Offload welcome email to background queue
+    await notificationQueue.add('WELCOME_EMAIL', {
+      type: 'WELCOME_EMAIL',
+      payload: {
+        email: result.user.email,
+        tenantId: result.tenant.id,
+        name: result.user.name
+      }
+    });
+
     res.status(201).json(result);
   } catch (error) {
     next(error);
