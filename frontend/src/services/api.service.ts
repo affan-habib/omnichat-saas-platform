@@ -36,6 +36,7 @@ export const userService = {
   update: (id: string, data: any) => api.put(`/users/${id}`, data),
   updateStatus: (id: string, status: string) => api.put(`/users/${id}/status`, { status }),
   remove: (id: string) => api.delete(`/users/${id}`),
+  getMetrics: (id: string) => api.get(`/users/${id}/metrics`),
 };
 
 export const teamService = {
@@ -53,6 +54,7 @@ export const contactService = {
   getById: (id: string) => api.get(`/contacts/${id}`),
   update: (id: string, data: any) => api.put(`/contacts/${id}`, data),
   remove: (id: string) => api.delete(`/contacts/${id}`),
+  getMetrics: () => api.get('/contacts/metrics'),
 };
 
 export const cannedService = {

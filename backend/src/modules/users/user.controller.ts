@@ -46,3 +46,13 @@ export const status = async (req: AuthRequest, res: Response, next: NextFunction
     next(error);
   }
 };
+
+export const metrics = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const idToUse = req.params.id === 'me' ? req.user!.id : req.params.id;
+    const metricsData = await userService.getMetrics(idToUse, req.user!.tenantId);
+    res.json(metricsData);
+  } catch (error) {
+    next(error);
+  }
+};

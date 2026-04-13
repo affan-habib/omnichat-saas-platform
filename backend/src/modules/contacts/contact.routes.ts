@@ -25,6 +25,18 @@ router.get('/', contactController.list);
 
 /**
  * @swagger
+ * /api/contacts/metrics:
+ *   get:
+ *     summary: Get CRM analytics metrics
+ *     tags: [Contacts]
+ *     responses:
+ *       200:
+ *         description: CRM metrics returned
+ */
+router.get('/metrics', contactController.metrics);
+
+/**
+ * @swagger
  * /api/contacts:
  *   post:
  *     summary: Create a new contact

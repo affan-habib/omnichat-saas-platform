@@ -42,15 +42,21 @@ export default function CRMPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: "", email: "", phone: "", location: "" });
+  const [metrics, setMetrics] = useState<any>(null);
 
   const fetchContacts = async (query = "") => {
     setLoading(true);
     try {
-      const response = await contactService.list(query);
+      const [response, metricsRes] = await Promise.all([
+        contactService.list(query),
+        contactService.getMetrics()
+      ]);
       setContacts(response.data);
+      setMetrics(metricsRes.data);
     } catch (error) {
-      toast.error("Failed to load contacts");
+      toast.error("Failed to load contacts or metrics");
     } finally {
+
       setLoading(false);
     }
   };
@@ -257,9 +263,9 @@ export default function CRMPage() {
             </CardHeader>
             <CardContent className="space-y-6 pt-4">
                {[
-                 { label: "High Value (VIP)", count: 124, color: "bg-primary" },
-                 { label: "Newly Acquired", count: 85, color: "bg-emerald-500" },
-                 { label: "Churn Risk", count: 210, color: "bg-rose-500" },
+                 { label: "High Value (VIP)", count: metrics?.highValue || 0, color: "bg-primary" },
+                 { label: "Newly Acquired", count: metrics?.newlyAcquired || 0, color: "bg-emerald-500" },
+                 { label: "Churn Risk", count: metrics?.churnRisk || 0, color: "bg-rose-500" },
                ].map((seg, i) => (
                  <div key={i} className="space-y-2">
                     <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
@@ -267,7 +273,7 @@ export default function CRMPage() {
                        <span className="text-foreground">{seg.count} Profile{seg.count !== 1 ? 's' : ''}</span>
                     </div>
                     <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden shadow-inner">
-                       <motion.div initial={{ width: 0 }} animate={{ width: `${(seg.count/419)*100}%` }} className={cn("h-full rounded-full shadow-lg", seg.color)} />
+                       <motion.div initial={{ width: 0 }} animate={{ width: metrics?.total > 0 ? `${(seg.count/metrics.total)*100}%` : '0%' }} className={cn("h-full rounded-full shadow-lg", seg.color)} />
                     </div>
                  </div>
                ))}
@@ -286,15 +292,15 @@ export default function CRMPage() {
                   <div className="relative h-32 w-32">
                      <svg className="h-full w-full rotate-[-90deg]">
                         <circle cx="50%" cy="50%" r="40%" className="fill-none stroke-muted stroke-[12]" />
-                        <circle cx="50%" cy="50%" r="40%" className="fill-none stroke-emerald-500 stroke-[12] shadow-xl" strokeDasharray="180 251" strokeDashoffset="0" strokeLinecap="round" />
+                        <circle cx="50%" cy="50%" r="40%" className="fill-none stroke-emerald-500 stroke-[12] shadow-xl" strokeDasharray="180 251" strokeDashoffset={251 - ((metrics?.growthRate || 0)/100 * 251)} strokeLinecap="round" />
                      </svg>
                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-black">72%</span>
-                        <span className="text-[10px] font-black text-slate-400">Week on Week</span>
+                        <span className="text-2xl font-black">{metrics?.growthRate || 0}%</span>
+                        <span className="text-[10px] font-black text-slate-400">Total Growth</span>
                      </div>
                   </div>
                </div>
-               <p className="text-xs text-center text-muted-foreground font-bold px-4 uppercase tracking-tighter">Acquisition Velocity <span className="text-emerald-500 underline">+24 Profile Vectors</span></p>
+               <p className="text-xs text-center text-muted-foreground font-bold px-4 uppercase tracking-tighter">Acquisition Velocity <span className="text-emerald-500 underline">+{metrics?.newlyAcquired || 0} Last 30 Days</span></p>
             </CardContent>
          </Card>
 
@@ -308,7 +314,7 @@ export default function CRMPage() {
             </CardHeader>
             <CardContent className="space-y-6 relative z-10">
                <p className="text-xs text-slate-400 font-bold leading-relaxed uppercase tracking-wide">
-                  Identified <span className="text-white">48 high-intent profiles</span> who haven't converted. Launching an automated follow-up sequence is recommended.
+                  Identified <span className="text-white">{metrics?.churnRisk || 0} at-risk profiles</span> who haven't converted recently. Launching an automated follow-up sequence is recommended.
                </p>
                <Button onClick={() => toast.info("Opening campaign editor")} className="w-full bg-primary hover:bg-primary/90 text-white font-black h-12 rounded-2xl shadow-xl shadow-primary/30 uppercase tracking-widest text-xs">
                   Launch Outreach Node
@@ -494,25 +500,21 @@ export default function CRMPage() {
                              <ChevronRight className="h-3 w-3" />
                           </span>
                        </div>
-                       <div className="space-y-2">
-                          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/50">
-                             <div className="h-8 w-8 rounded-lg bg-background flex items-center justify-center text-primary">
-                                <MessageCircle className="h-4 w-4" />
-                             </div>
-                             <div className="flex-1">
-                                <p className="text-xs font-bold">Omnichannel Support Chat</p>
-                                <p className="text-[10px] text-muted-foreground font-medium">Topic: Order Tracking • {selectedCustomer.lastActive}</p>
-                             </div>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/50">
-                             <div className="h-8 w-8 rounded-lg bg-background flex items-center justify-center text-indigo-500">
-                                <CreditCard className="h-4 w-4" />
-                             </div>
-                             <div className="flex-1">
-                                <p className="text-xs font-bold">Transaction #49203</p>
-                                <p className="text-[10px] text-muted-foreground font-medium">Status: Completed • 4 days ago</p>
-                             </div>
-                          </div>
+                        <div className="space-y-2">
+                          {selectedCustomer.conversations?.map((conv: any) => (
+                           <div key={conv.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/50">
+                              <div className="h-8 w-8 rounded-lg bg-background flex items-center justify-center text-primary">
+                                 <MessageCircle className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1">
+                                 <p className="text-xs font-bold capitalize">{conv.channel.toLowerCase()} Chat</p>
+                                 <p className="text-[10px] text-muted-foreground font-medium">Status: {conv.status} • {new Date(conv.updatedAt).toLocaleDateString()}</p>
+                              </div>
+                           </div>
+                          ))}
+                          {(!selectedCustomer.conversations || selectedCustomer.conversations.length === 0) && (
+                            <p className="text-xs text-muted-foreground p-3 text-center">No conversational history yet.</p>
+                          )}
                        </div>
                     </div>
                  </div>

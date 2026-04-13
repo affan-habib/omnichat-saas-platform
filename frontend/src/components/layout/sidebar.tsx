@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -49,6 +49,15 @@ export function Sidebar() {
   const pathname = usePathname();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { user, role, isSidebarCollapsed, toggleSidebar } = useUser();
+  const [metrics, setMetrics] = useState<any>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      import('@/services/api.service').then(({ userService }) => {
+        userService.getMetrics('me').then(res => setMetrics(res.data)).catch(() => {});
+      });
+    }
+  }, [user?.id]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -56,11 +65,17 @@ export function Sidebar() {
   };
 
   // ── Smart Sidebar Filtering ─────────────────────────────────────
-  // If Superadmin: Hide all regular workspace tools, show ONLY Admin Portal.
-  // Other roles: Show their assigned items.
+  const dynamicNavigation = navigation.map(item => {
+    if (item.name === "Inbox" && metrics?.openInboxCount) {
+      return { ...item, badge: metrics.openInboxCount.toString() };
+    }
+    return item;
+  });
+
   const filteredNavigation = role === "superadmin"
-    ? navigation.filter((item) => item.name === "Superadmin Portal")
-    : navigation.filter((item) => item.roles.includes(role) && item.name !== "Superadmin Portal");
+    ? dynamicNavigation.filter((item) => item.name === "Superadmin Portal")
+    : dynamicNavigation.filter((item) => item.roles.includes(role) && item.name !== "Superadmin Portal");
+
 
   return (
     <motion.div 
@@ -236,14 +251,14 @@ export function Sidebar() {
               </div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Target Achievement</p>
               <div className="flex items-end gap-1 mb-2">
-                <span className="text-xl font-bold">75</span>
-                <span className="text-xs text-slate-500 font-bold mb-0.5">/ 100</span>
+                <span className="text-xl font-bold">{metrics?.resolvedTodayCount || 0}</span>
+                <span className="text-xs text-slate-500 font-bold mb-0.5">/ {metrics?.dailyTarget || 100}</span>
               </div>
               <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: '75%' }}
-                  className="h-full bg-linear-to-r from-primary to-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.4)]" 
+                  animate={{ width: `${Math.min(((metrics?.resolvedTodayCount || 0) / (metrics?.dailyTarget || 100)) * 100, 100)}%` }}
+                  className="h-full bg-linear-to-r from-primary to-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.4)] transition-all duration-1000" 
                 />
               </div>
             </motion.div>

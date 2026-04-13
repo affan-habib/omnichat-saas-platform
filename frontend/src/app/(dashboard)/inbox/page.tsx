@@ -47,6 +47,7 @@ import {
   markConversationRead,
   setAgentStatus,
 } from "@/lib/socket-client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function InboxPage() {
   const { user, role, fetchMe } = useUser();
@@ -83,6 +84,7 @@ export default function InboxPage() {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [contactHistory, setContactHistory] = useState<any[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingConvs, setIsLoadingConvs] = useState(true);
 
   const isAdmin = role === 'admin' || role === 'owner';
   const isAgent = role === 'agent';
@@ -141,6 +143,8 @@ export default function InboxPage() {
         }
       } catch (error) {
         toast.error("Failed to fetch conversations");
+      } finally {
+        setIsLoadingConvs(false);
       }
     };
     fetchConvs();
@@ -561,7 +565,17 @@ export default function InboxPage() {
 
         <div className="flex-1 overflow-y-auto px-2 pb-4 pt-2">
           <div className="space-y-1">
-            {convs.map((chat) => (
+            {isLoadingConvs ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3 p-3">
+                  <Skeleton className="h-12 w-12 rounded-2xl shrink-0" />
+                  <div className="flex-1 space-y-2 py-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </div>
+              ))
+            ) : convs.map((chat) => (
                 <button
                   key={chat.id}
                   onClick={() => setSelectedId(chat.id)}
@@ -618,7 +632,7 @@ export default function InboxPage() {
                   </div>
                 </button>
               ))}
-              {convs.length === 0 && (
+              {!isLoadingConvs && convs.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
                    <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
                       <InboxIcon className="h-8 w-8 text-muted-foreground/30" />
@@ -767,10 +781,18 @@ export default function InboxPage() {
 
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
               {isLoadingMessages && messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full space-y-4 opacity-50">
-                    <div className="h-4 w-4 rounded-full bg-primary animate-ping" />
-                    <p className="text-[10px] font-black uppercase tracking-widest">Loading Records...</p>
-                  </div>
+                <div className="space-y-6">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className={cn("flex w-full", i % 2 === 0 ? "justify-start" : "justify-end")}>
+                      <div className="flex items-end gap-2 max-w-[70%]">
+                        {i % 2 === 0 && <Skeleton className="w-8 h-8 rounded-xl shrink-0" />}
+                        <div className="space-y-2">
+                          <Skeleton className={cn("h-16 rounded-2xl", i % 2 === 0 ? "w-48 rounded-bl-none" : "w-64 rounded-br-none")} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                ) : messages.map((msg) => (
                 <div key={msg.id} className={cn(
                   "flex w-full group",

@@ -63,6 +63,7 @@ model User {
   maxConcurrentChats Int         @default(5)
   isActive           Boolean     @default(true)
   needsPasswordChange Boolean     @default(true)
+  settings           Json?       // Stores darkMode, notifications, etc.
   createdAt          DateTime    @default(now())
 
   tenant           Tenant           @relation(fields: [tenantId], references: [id])

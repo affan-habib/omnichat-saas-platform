@@ -89,3 +89,44 @@ export const updateStatus = async (id: string, tenantId: string, status: any) =>
     data: { status }
   });
 };
+
+export const getMetrics = async (id: string, tenantId: string) => {
+  // 1. Open Inbox Count
+  const openInboxCount = await prisma.conversation.count({
+    where: {
+      tenantId,
+      assigneeId: id,
+      status: 'OPEN'
+    }
+  });
+
+  // 2. Today's Resolved Count
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const resolvedTodayCount = await prisma.conversation.count({
+    where: {
+      tenantId,
+      assigneeId: id,
+      status: 'RESOLVED',
+      resolvedAt: {
+        gte: startOfDay
+      }
+    }
+  });
+
+  // 3. User Daily Target (defaults to 100 if not set)
+  const user = await prisma.user.findUnique({
+    where: { id, tenantId },
+    select: { settings: true }
+  });
+  
+  const settings: any = user?.settings || {};
+  const dailyTarget = settings.dailyTarget || 100;
+
+  return {
+    openInboxCount,
+    resolvedTodayCount,
+    dailyTarget
+  };
+};

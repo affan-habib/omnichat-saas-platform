@@ -26,15 +26,39 @@ import { useUser } from "@/context/user-context";
 import { tenantService } from "@/services/api.service";
 
 export default function SettingsPage() {
-  const { role } = useUser();
+  const { role, user, fetchMe, toggleTheme, theme } = useUser();
   const [isAdminChatting, setIsAdminChatting] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [brandColor, setBrandColor] = useState("#6366f1");
   const [whiteLabelEnabled, setWhiteLabelEnabled] = useState(false);
   const [savingOrg, setSavingOrg] = useState(false);
 
-  // Fetch current tenant settings on mount
+  // User Settings State
+  const [compactMode, setCompactMode] = useState(false);
+  const [supervisorOverride, setSupervisorOverride] = useState(true);
+  const [readReceipts, setReadReceipts] = useState(true);
+  const [autoTranslate, setAutoTranslate] = useState(false);
+  const [dailyTarget, setDailyTarget] = useState(100);
+  const [notifications, setNotifications] = useState({
+    browser: true,
+    email: true,
+    desktop: true,
+  });
+
+  // Fetch current tenant & user settings on mount
   useEffect(() => {
+    // Populate user settings from user context
+    if (user?.settings) {
+      setCompactMode(user.settings.compactMode ?? false);
+      setSupervisorOverride(user.settings.supervisorOverride ?? true);
+      setReadReceipts(user.settings.readReceipts ?? true);
+      setAutoTranslate(user.settings.autoTranslate ?? false);
+      setDailyTarget(user.settings.dailyTarget ?? 100);
+      if (user.settings.notifications) {
+        setNotifications(user.settings.notifications);
+      }
+    }
+
     const fetchTenant = async () => {
       try {
         const res = await tenantService.get();
@@ -68,6 +92,19 @@ export default function SettingsPage() {
       toast.error("Failed to save settings");
     } finally {
       setSavingOrg(false);
+    }
+  };
+
+  const handleSaveUserSettings = async (updatedSettings: any) => {
+    try {
+      // Merge new settings with existing user settings
+      const newSettings = { ...user?.settings, ...updatedSettings };
+      const { userService } = await import('@/services/api.service');
+      await userService.update(user!.id, { settings: newSettings });
+      await fetchMe(); // Refresh context
+      toast.success("Preferences saved successfully");
+    } catch {
+      toast.error("Failed to save preferences");
     }
   };
 
@@ -126,6 +163,16 @@ export default function SettingsPage() {
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Language</label>
                     <div className="p-4 rounded-2xl bg-muted font-bold font-sans">English (US)</div>
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Daily Resolution Target</label>
+                    <Input 
+                      type="number"
+                      value={dailyTarget}
+                      onChange={(e) => setDailyTarget(Number(e.target.value))}
+                      onBlur={() => handleSaveUserSettings({ dailyTarget })}
+                      className="h-14 font-bold rounded-2xl bg-muted border-none"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -140,14 +187,14 @@ export default function SettingsPage() {
                           <Eye className="h-5 w-5 text-primary" />
                           <span className="text-sm font-bold">Dark Mode</span>
                        </div>
-                       <Switch checked={true} onCheckedChange={() => toast.info("Theme preference saved")} />
+                       <Switch checked={theme === 'dark'} onCheckedChange={() => { toggleTheme(); handleSaveUserSettings({ darkMode: theme !== 'dark' }); }} />
                     </div>
                     <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border/50">
                        <div className="flex items-center gap-3">
                           <Smartphone className="h-5 w-5 text-indigo-500" />
                           <span className="text-sm font-bold">Compact Mode</span>
                        </div>
-                       <Switch onCheckedChange={() => toast.info("Layout mode updated")} />
+                       <Switch checked={compactMode} onCheckedChange={(val) => { setCompactMode(val); handleSaveUserSettings({ compactMode: val }); }} />
                     </div>
                  </CardContent>
               </Card>
@@ -186,9 +233,9 @@ export default function SettingsPage() {
                             <p className="text-sm font-bold">Supervisor Override</p>
                             <p className="text-[10px] text-slate-500 font-medium">Allow supervisors to take over any active agent session.</p>
                          </div>
-                         <Switch checked={true} onCheckedChange={() => toast.warning("Override permissions restricted")} />
-                      </div>
-                   </CardContent>
+                          <Switch checked={supervisorOverride} onCheckedChange={(val) => { setSupervisorOverride(val); handleSaveUserSettings({ supervisorOverride: val }); }} />
+                       </div>
+                    </CardContent>
                 </Card>
 
                 <div className="space-y-4">
@@ -274,19 +321,19 @@ export default function SettingsPage() {
                       <CardContent className="p-6">
                          <div className="flex items-center justify-between mb-4">
                             <span className="text-sm font-bold">Read Receipts</span>
-                            <Switch checked={true} onCheckedChange={() => toast.success("Privacy settings updated")} />
-                         </div>
-                         <p className="text-[10px] text-muted-foreground font-medium">Customers can see when you have read their messages.</p>
-                      </CardContent>
-                   </Card>
-                   <Card className="rounded-3xl border-border/50 shadow-sm">
-                      <CardContent className="p-6">
-                         <div className="flex items-center justify-between mb-4">
-                            <span className="text-sm font-bold">Auto-Translate</span>
-                            <Switch onCheckedChange={() => toast.success("AI Translation enabled")} />
-                         </div>
-                         <p className="text-[10px] text-muted-foreground font-medium">Automatically translate non-English messages using AI.</p>
-                      </CardContent>
+                             <Switch checked={readReceipts} onCheckedChange={(val) => { setReadReceipts(val); handleSaveUserSettings({ readReceipts: val }); }} />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground font-medium">Customers can see when you have read their messages.</p>
+                       </CardContent>
+                    </Card>
+                    <Card className="rounded-3xl border-border/50 shadow-sm">
+                       <CardContent className="p-6">
+                          <div className="flex items-center justify-between mb-4">
+                             <span className="text-sm font-bold">Auto-Translate</span>
+                             <Switch checked={autoTranslate} onCheckedChange={(val) => { setAutoTranslate(val); handleSaveUserSettings({ autoTranslate: val }); }} />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground font-medium">Automatically translate non-English messages using AI.</p>
+                       </CardContent>
                    </Card>
                 </div>
              </motion.div>
@@ -299,14 +346,26 @@ export default function SettingsPage() {
                    <p className="text-muted-foreground font-medium">Control how you get alerted for new interaction events.</p>
                 </div>
 
-                <div className="space-y-4">
-                   {['Browser Push', 'Email Digest', 'Desktop Sound'].map((notif) => (
-                      <div key={notif} className="flex items-center justify-between p-6 rounded-3xl bg-card border border-border/50 shadow-sm">
-                         <span className="font-bold text-sm">{notif} Notifications</span>
-                         <Switch checked={true} onCheckedChange={() => toast.success(`${notif} preference saved`)} />
-                      </div>
-                   ))}
-                </div>
+                 <div className="space-y-4">
+                    <div className="flex items-center justify-between p-6 rounded-3xl bg-card border border-border/50 shadow-sm">
+                       <span className="font-bold text-sm">Browser Push Notifications</span>
+                       <Switch checked={notifications.browser} onCheckedChange={(val) => { 
+                         const n = { ...notifications, browser: val }; setNotifications(n); handleSaveUserSettings({ notifications: n }); 
+                       }} />
+                    </div>
+                    <div className="flex items-center justify-between p-6 rounded-3xl bg-card border border-border/50 shadow-sm">
+                       <span className="font-bold text-sm">Email Digest Notifications</span>
+                       <Switch checked={notifications.email} onCheckedChange={(val) => { 
+                         const n = { ...notifications, email: val }; setNotifications(n); handleSaveUserSettings({ notifications: n }); 
+                       }} />
+                    </div>
+                    <div className="flex items-center justify-between p-6 rounded-3xl bg-card border border-border/50 shadow-sm">
+                       <span className="font-bold text-sm">Desktop Sound Notifications</span>
+                       <Switch checked={notifications.desktop} onCheckedChange={(val) => { 
+                         const n = { ...notifications, desktop: val }; setNotifications(n); handleSaveUserSettings({ notifications: n }); 
+                       }} />
+                    </div>
+                 </div>
              </motion.div>
           )}
 

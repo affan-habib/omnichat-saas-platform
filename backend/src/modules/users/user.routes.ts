@@ -92,4 +92,22 @@ router.put('/:id/status', userController.status);
  */
 router.delete('/:id', authorize('OWNER', 'ADMIN'), userController.remove);
 
+/**
+ * @swagger
+ * /api/users/{id}/metrics:
+ *   get:
+ *     summary: Get user performance metrics
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: User metrics returned
+ */
+router.get('/:id/metrics', userController.metrics);
+
+
 export default router;

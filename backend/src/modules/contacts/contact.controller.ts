@@ -47,3 +47,13 @@ export const remove = async (req: AuthRequest, res: Response, next: NextFunction
     next(error);
   }
 };
+
+export const metrics = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await contactService.getContactMetrics(req.user!.tenantId);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+};
+
