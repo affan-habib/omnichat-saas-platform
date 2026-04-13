@@ -1277,24 +1277,24 @@ export default function InboxPage() {
               </div>
 
               <div className="p-10 space-y-10 overflow-y-auto flex-1 custom-scrollbar">
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <label className="text-xs font-black uppercase tracking-widest ml-1 text-muted-foreground">Select Outcome Vector</label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {dispositions.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => setSelectedDisposition(item.id)}
                         className={cn(
-                          "flex items-center gap-4 p-4 rounded-[1.5rem] border-2 transition-all text-left group",
+                          "flex items-center gap-3 p-3 rounded-[1.25rem] border-2 transition-all text-left group",
                           selectedDisposition === item.id 
                             ? "border-primary bg-primary/5 shadow-inner" 
                             : "border-transparent bg-muted/40 hover:bg-muted"
                         )}
                       >
-                        <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-110", item.bg)}>
-                          <item.icon className={cn("h-6 w-6", item.color)} />
+                        <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-110", item.bg)}>
+                          <item.icon className={cn("h-4 w-4", item.color)} />
                         </div>
-                        <span className="text-xs font-black uppercase tracking-tight">{item.label}</span>
+                        <span className="text-[10px] font-black uppercase leading-tight">{item.label}</span>
                       </button>
                     ))}
                   </div>
