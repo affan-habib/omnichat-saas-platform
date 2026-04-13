@@ -1,3 +1,4 @@
+import { Role } from '@prisma/client';
 import prisma from '../../config/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -56,6 +57,19 @@ export const login = async (data: any) => {
   if (!user || !(await bcrypt.compare(password, user.password))) {
     const error = new Error('Invalid credentials') as any;
     error.status = 401;
+    throw error;
+  }
+
+  // ── Tenant Status Check ─────────────────────────────────────
+  // Superadmins are global and can always login.
+  // Other users are blocked if their tenant is not ACTIVE.
+  if (user.role !== Role.SUPERADMIN && user.tenant?.status !== 'ACTIVE') {
+    const status = user.tenant?.status;
+    const msg = status === 'PENDING' 
+      ? 'Your account is pending approval. Please contact the administrator.'
+      : 'Your account has been suspended.';
+    const error = new Error(msg) as any;
+    error.status = 403;
     throw error;
   }
 

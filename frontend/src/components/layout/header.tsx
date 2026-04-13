@@ -18,10 +18,16 @@ import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 
 export function Header() {
-  const { toggleTheme, isSidebarCollapsed, toggleSidebar } = useUser();
+  const { toggleTheme, isSidebarCollapsed, toggleSidebar, role } = useUser();
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/70 px-8 backdrop-blur-md sticky top-0 z-30">
       <div className="flex w-full max-w-xl items-center gap-4">
+        {role === "superadmin" && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-600 text-white rounded-xl shadow-lg shadow-rose-600/20 animate-in fade-in slide-in-from-left-4 duration-500">
+            <PanelLeft className="h-3.5 w-3.5 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Platform Admin</span>
+          </div>
+        )}
         <Button 
           variant="ghost" 
           size="icon" 

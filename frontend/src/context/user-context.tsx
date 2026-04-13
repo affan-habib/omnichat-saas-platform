@@ -5,7 +5,7 @@ import { authService } from "@/services/api.service";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
 
-export type UserRole = "agent" | "supervisor" | "admin" | "owner";
+export type UserRole = "agent" | "supervisor" | "admin" | "owner" | "superadmin";
 export type Theme = "light" | "dark";
 
 interface UserContextType {

@@ -99,3 +99,10 @@ export const connectorService = {
   remove: (id: string) => api.delete(`/connectors/${id}`),
   test: (id: string) => api.post(`/connectors/${id}/test`, {}),
 };
+
+export const adminService = {
+  getOverview: () => api.get('/admin/overview'),
+  listTenants: () => api.get('/admin/tenants'),
+  updateTenantStatus: (id: string, status: string) => api.put(`/admin/tenants/${id}/status`, { status }),
+  getLogs: () => api.get('/admin/logs'),
+};

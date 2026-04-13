@@ -19,6 +19,7 @@ import routingRuleRoutes from './modules/routing-rules/routing-rule.routes';
 import auditLogRoutes from './modules/audit-logs/audit-log.routes';
 import tenantRoutes from './modules/tenants/tenant.routes';
 import connectorRoutes from './modules/connectors/connector.routes';
+import adminRoutes from './modules/admin/admin.routes';
 import metaWebhookRoutes from './webhooks/meta.webhook.routes';
 
 dotenv.config();
@@ -70,6 +71,7 @@ app.use('/api/routing-rules', routingRuleRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/connectors', connectorRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error Handler
 app.use(errorHandler);

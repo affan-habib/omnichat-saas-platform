@@ -9,13 +9,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── TENANT ────────────────────────────────────────────────────────────────────
+enum TenantStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
 
 model Tenant {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   name      String
-  slug      String   @unique
-  settings  Json?    // { brandColor, timezone, notificationsEnabled, ... }
+  slug      String       @unique
+  status    TenantStatus @default(PENDING)
+  settings  Json?        // { brandColor, timezone, notificationsEnabled, ... }
   createdAt DateTime @default(now())
 
   users           User[]
@@ -32,6 +37,7 @@ model Tenant {
 // ─── USERS & ROLES ─────────────────────────────────────────────────────────────
 
 enum Role {
+  SUPERADMIN
   OWNER
   ADMIN
   SUPERVISOR

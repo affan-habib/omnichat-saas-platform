@@ -6,7 +6,24 @@ const prisma = new PrismaClient()
 async function main() {
   // Create tenant
   const tenant = await prisma.tenant.create({
-    data: { name: 'Acme Corp', slug: 'acme' },
+    data: { 
+      name: 'Acme Corp', 
+      slug: 'acme',
+      status: 'ACTIVE' // Main seed tenant should be active
+    },
+  })
+
+  // Create Superadmin user
+  const superadmin = await prisma.user.create({
+    data: {
+      tenantId: tenant.id,
+      email: 'superadmin@omnichat.com',
+      name: 'Platform Admin',
+      password: await bcrypt.hash('admin123', 10),
+      role: 'SUPERADMIN',
+      status: 'ONLINE',
+      needsPasswordChange: false,
+    },
   })
 
   // Create admin user

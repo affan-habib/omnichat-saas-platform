@@ -29,18 +29,20 @@ import { useUser } from "@/context/user-context";
 
 const navigation = [
   // Operations
-  { name: "Inbox", href: "/inbox", icon: Inbox, badge: "12", roles: ["agent", "supervisor", "admin"] },
-  { name: "CRM", href: "/crm", icon: UserCircle, roles: ["agent", "supervisor", "admin"] },
-  { name: "Canned Replies", href: "/canned-responses", icon: Hash, roles: ["agent", "supervisor", "admin"] },
+  { name: "Inbox", href: "/inbox", icon: Inbox, badge: "12", roles: ["agent", "supervisor", "admin", "superadmin"] },
+  { name: "CRM", href: "/crm", icon: UserCircle, roles: ["agent", "supervisor", "admin", "superadmin"] },
+  { name: "Canned Replies", href: "/canned-responses", icon: Hash, roles: ["agent", "supervisor", "admin", "superadmin"] },
   // Management
-  { name: "Reports", href: "/analytics", icon: BarChart3, roles: ["supervisor", "admin"] },
-  { name: "Workforce", href: "/workforce", icon: Users, roles: ["supervisor", "admin"] },
+  { name: "Reports", href: "/analytics", icon: BarChart3, roles: ["supervisor", "admin", "superadmin"] },
+  { name: "Workforce", href: "/workforce", icon: Users, roles: ["supervisor", "admin", "superadmin"] },
   // Admin
-  { name: "Automation", href: "/settings/routing", icon: Zap, roles: ["admin"] },
-  { name: "Integrations", href: "/connectors", icon: Plug2, roles: ["admin"] },
-  { name: "Audit Logs", href: "/audit", icon: ShieldCheck, roles: ["admin"] },
+  { name: "Automation", href: "/settings/routing", icon: Zap, roles: ["admin", "superadmin"] },
+  { name: "Integrations", href: "/connectors", icon: Plug2, roles: ["admin", "superadmin"] },
+  { name: "Audit Logs", href: "/audit", icon: ShieldCheck, roles: ["admin", "superadmin"] },
   // System
-  { name: "Settings", href: "/settings/general", icon: Settings, roles: ["agent", "supervisor", "admin"] },
+  { name: "Settings", href: "/settings/general", icon: Settings, roles: ["agent", "supervisor", "admin", "superadmin"] },
+  // Superadmin Shortcut
+  { name: "Superadmin Portal", href: "/admin", icon: Shield, roles: ["superadmin"] },
 ];
 
 export function Sidebar() {
@@ -53,7 +55,12 @@ export function Sidebar() {
     window.location.href = "/";
   };
 
-  const filteredNavigation = navigation.filter(item => item.roles.includes(role));
+  // ── Smart Sidebar Filtering ─────────────────────────────────────
+  // If Superadmin: Hide all regular workspace tools, show ONLY Admin Portal.
+  // Other roles: Show their assigned items.
+  const filteredNavigation = role === "superadmin"
+    ? navigation.filter((item) => item.name === "Superadmin Portal")
+    : navigation.filter((item) => item.roles.includes(role) && item.name !== "Superadmin Portal");
 
   return (
     <motion.div 
