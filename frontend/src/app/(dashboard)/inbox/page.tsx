@@ -190,7 +190,11 @@ export default function InboxPage() {
 
       const response = await conversationService.getAll(filters);
       if (response.data.length > 0) {
-        setConvs(prev => [...prev, ...response.data]);
+        setConvs(prev => {
+          const combined = [...prev, ...response.data];
+          // Use a Map to deduplicate by ID while preserving order
+          return Array.from(new Map(combined.map(item => [item.id, item])).values());
+        });
         setConvsOffset(nextOffset);
       }
       if (response.data.length < 20) setHasMoreConvs(false);
@@ -274,7 +278,10 @@ export default function InboxPage() {
       
       if (response.data.length > 0) {
         const olderMessages = response.data.reverse();
-        setMessages(prev => [...olderMessages, ...prev]);
+        setMessages(prev => {
+          const combined = [...olderMessages, ...prev];
+          return Array.from(new Map(combined.map(item => [item.id, item])).values());
+        });
         setMessagesCursor(olderMessages[0].id);
         
         // Use timeout to adjust scroll after DOM updates
@@ -407,7 +414,10 @@ export default function InboxPage() {
 
     // New conversation appeared (from any channel or agent)
     const onConversationNew = (conv: any) => {
-      setConvs(prev => [conv, ...prev]);
+      setConvs(prev => {
+        if (prev.some(c => c.id === conv.id)) return prev;
+        return [conv, ...prev];
+      });
       toast.info(`New conversation from ${conv.contactName || 'Customer'}`);
     };
 
@@ -1254,7 +1264,7 @@ export default function InboxPage() {
               initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 30 }}
-              className="relative w-full max-w-xl bg-card border border-border rounded-[3rem] shadow-2xl overflow-hidden font-outfit"
+              className="relative w-full max-w-xl bg-card border border-border rounded-[3rem] shadow-2xl overflow-hidden font-outfit max-h-[90vh] flex flex-col"
             >
               <div className="p-8 border-b border-border flex items-center justify-between">
                 <div>
@@ -1266,7 +1276,7 @@ export default function InboxPage() {
                 </Button>
               </div>
 
-              <div className="p-10 space-y-10">
+              <div className="p-10 space-y-10 overflow-y-auto flex-1 custom-scrollbar">
                 <div className="space-y-6">
                   <label className="text-xs font-black uppercase tracking-widest ml-1 text-muted-foreground">Select Outcome Vector</label>
                   <div className="grid grid-cols-2 gap-4">
@@ -1333,7 +1343,7 @@ export default function InboxPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-card border border-border shadow-2xl rounded-[2.5rem] overflow-hidden p-8 font-outfit"
+              className="relative w-full max-w-md bg-card border border-border shadow-2xl rounded-[2.5rem] overflow-hidden p-8 font-outfit max-h-[90vh] overflow-y-auto custom-scrollbar"
             >
               <div className="flex items-center justify-between mb-6">
                 <div>
