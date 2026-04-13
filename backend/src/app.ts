@@ -5,7 +5,7 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 import { errorHandler } from './middleware/errorHandler';
 
-// Import routes (to be created)
+// Import routes
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/user.routes';
 import teamRoutes from './modules/teams/team.routes';
@@ -18,12 +18,27 @@ import analyticsRoutes from './modules/analytics/analytics.routes';
 import routingRuleRoutes from './modules/routing-rules/routing-rule.routes';
 import auditLogRoutes from './modules/audit-logs/audit-log.routes';
 import tenantRoutes from './modules/tenants/tenant.routes';
+import connectorRoutes from './modules/connectors/connector.routes';
+import metaWebhookRoutes from './webhooks/meta.webhook.routes';
 
 dotenv.config();
 
 const app = express();
 
 app.use(cors());
+
+// ── Raw body capture (scoped to /webhooks — required for Meta signature verification) ─
+app.use('/webhooks', (req: any, res, next) => {
+  let data: Buffer[] = [];
+  req.on('data', (chunk: Buffer) => data.push(chunk));
+  req.on('end', () => {
+    req.rawBody = Buffer.concat(data);
+    // Parse JSON manually for webhook routes
+    try { req.body = JSON.parse(req.rawBody.toString()); } catch { req.body = {}; }
+    next();
+  });
+});
+
 app.use(express.json());
 
 // Swagger Documentation
@@ -38,7 +53,10 @@ app.get('/', (req, res) => {
   res.json({ message: 'OmniChat API is running', docs: '/api-docs' });
 });
 
-// Module routes
+// ── Public webhook routes (no JWT) ───────────────────────────────────────────
+app.use('/webhooks', metaWebhookRoutes);
+
+// ── Authenticated API routes ─────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
@@ -51,6 +69,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/routing-rules', routingRuleRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/tenants', tenantRoutes);
+app.use('/api/connectors', connectorRoutes);
 
 // Error Handler
 app.use(errorHandler);

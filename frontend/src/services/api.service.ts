@@ -91,3 +91,11 @@ export const routingService = {
   toggle: (id: string, isActive: boolean) => api.put(`/routing-rules/${id}/toggle`, { isActive }),
   remove: (id: string) => api.delete(`/routing-rules/${id}`),
 };
+
+export const connectorService = {
+  list: () => api.get('/connectors'),
+  create: (data: any) => api.post('/connectors', data),
+  update: (id: string, data: any) => api.put(`/connectors/${id}`, data),
+  remove: (id: string) => api.delete(`/connectors/${id}`),
+  test: (id: string) => api.post(`/connectors/${id}/test`, {}),
+};

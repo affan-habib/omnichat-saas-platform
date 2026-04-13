@@ -17,28 +17,51 @@ export const getMessages = async (conversationId: string, tenantId: string, limi
 };
 
 export const sendMessage = async (conversationId: string, tenantId: string, data: any) => {
-  // Verify conversation belongs to tenant
+  // Verify conversation belongs to tenant + load connector info for outbound
   const convo = await prisma.conversation.findUnique({
-    where: { id: conversationId, tenantId }
+    where: { id: conversationId, tenantId },
+    include: { connector: true }
   });
   if (!convo) throw new Error('Unauthorized');
 
-  return await prisma.$transaction(async (tx) => {
-    const message = await tx.message.create({
-      data: {
-        ...data,
-        conversationId,
-      }
-    });
-
-    // Update conversation updatedAt timestamp
-    await tx.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() }
-    });
-
-    return message;
+  const message = await prisma.$transaction(async (tx) => {
+    const msg = await tx.message.create({ data: { ...data, conversationId } });
+    await tx.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
+    return msg;
   });
+
+  // ── Outbound Meta delivery ────────────────────────────────────
+  // Only fire when: message is from an AGENT, and the conversation has a connector
+  if (data.senderType === 'AGENT' && convo.connector && convo.externalId && data.type === 'TEXT') {
+    const connector = convo.connector;
+
+    try {
+      if (connector.channel === 'WHATSAPP' && connector.waPhoneNumberId && connector.waAccessToken) {
+        const { sendWhatsAppText } = await import('../../services/meta/whatsapp.client');
+        await sendWhatsAppText({
+          phoneNumberId: connector.waPhoneNumberId,
+          accessToken: connector.waAccessToken,
+          to: convo.externalId,
+          text: data.content,
+        });
+      } else if (
+        (connector.channel === 'MESSENGER' || connector.channel === 'INSTAGRAM') &&
+        connector.fbPageAccessToken
+      ) {
+        const { sendMessengerText } = await import('../../services/meta/messenger.client');
+        await sendMessengerText({
+          pageAccessToken: connector.fbPageAccessToken,
+          recipientId: convo.externalId,
+          text: data.content,
+        });
+      }
+    } catch (err: any) {
+      // Non-fatal: log but don't block the response
+      console.error(`[Meta] Outbound delivery failed for convo ${conversationId}:`, err.message);
+    }
+  }
+
+  return message;
 };
 
 export const markAsRead = async (id: string, tenantId: string) => {

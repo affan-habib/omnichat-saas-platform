@@ -26,6 +26,7 @@ model Tenant {
   routingRules    RoutingRule[]
   tags            Tag[]
   auditLogs       AuditLog[]
+  connectors      Connector[]
 }
 
 // ─── USERS & ROLES ─────────────────────────────────────────────────────────────
@@ -106,8 +107,47 @@ model Contact {
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   conversations Conversation[]
 
-  @@index([tenantId, phone])
   @@index([tenantId, email])
+  @@unique([tenantId, phone], name: "tenantId_phone")
+}
+
+// ─── CONNECTORS (Channel Integrations) ──────────────────────────────────────
+
+enum ConnectorChannel {
+  WHATSAPP
+  MESSENGER
+  INSTAGRAM
+}
+
+enum ConnectorStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+model Connector {
+  id          String           @id @default(uuid())
+  tenantId    String
+  name        String           // "WhatsApp Business - Main"
+  channel     ConnectorChannel
+  status      ConnectorStatus  @default(INACTIVE)
+  // WhatsApp fields
+  waPhoneNumberId   String?    // WHATSAPP_PHONE_NUMBER_ID
+  waAccessToken     String?    // Long-lived access token
+  waBusinessId      String?    // WHATSAPP_BUSINESS_ACCOUNT_ID
+  // Messenger/Instagram fields
+  fbPageId          String?    // Facebook Page ID
+  fbPageAccessToken String?    // Page access token
+  fbAppSecret       String?    // For webhook signature verification
+  // Instagram
+  igAccountId       String?    // Instagram Business Account ID
+  // Webhook
+  webhookVerifyToken String?   // Tenant-unique verify token
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  conversations Conversation[]
 }
 
 // ─── CONVERSATIONS ────────────────────────────────────────────────────────────
@@ -138,28 +178,32 @@ model Conversation {
   id           String             @id @default(uuid())
   tenantId     String
   contactId    String
+  connectorId  String?            // Which channel connector it came from
   assigneeId   String?
   teamId       String?
   channel      Channel
+  externalId   String?            // Meta PSID / WhatsApp phone / IG scoped ID
   status       ConversationStatus @default(OPEN)
   priority     Priority           @default(MEDIUM)
   subject      String?
-  disposition  String?            // e.g. "General Inquiry", "Billing"
+  disposition  String?
   firstReplyAt DateTime?
   resolvedAt   DateTime?
   snoozedUntil DateTime?
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
-  contact  Contact  @relation(fields: [contactId], references: [id])
-  assignee User?    @relation("AssignedAgent", fields: [assigneeId], references: [id])
-  team     Team?    @relation("AssignedTeam", fields: [teamId], references: [id])
-  messages Message[]
-  tags     ConversationTag[]
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  contact   Contact    @relation(fields: [contactId], references: [id])
+  connector Connector? @relation(fields: [connectorId], references: [id])
+  assignee  User?      @relation("AssignedAgent", fields: [assigneeId], references: [id])
+  team      Team?      @relation("AssignedTeam", fields: [teamId], references: [id])
+  messages  Message[]
+  tags      ConversationTag[]
 
   @@index([tenantId, status])
   @@index([tenantId, assigneeId])
+  @@index([tenantId, externalId])
 }
 
 // ─── MESSAGES ────────────────────────────────────────────────────────────────
