@@ -48,7 +48,7 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { role, isSidebarCollapsed, toggleSidebar } = useUser();
+  const { user, role, isSidebarCollapsed, toggleSidebar } = useUser();
 
   const handleLogout = () => {
     localStorage.clear();
