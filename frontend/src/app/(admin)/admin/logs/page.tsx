@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { adminService } from "@/services/api.service";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -145,13 +146,5 @@ export default function GlobalAuditLogsPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function Badge({ children, className, variant = "default" }: any) {
-  return (
-    <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold border", className)}>
-      {children}
-    </span>
   );
 }

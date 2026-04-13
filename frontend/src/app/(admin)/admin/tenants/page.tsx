@@ -19,11 +19,13 @@ import { Badge } from "@/components/ui/badge";
 import { adminService } from "@/services/api.service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { CreateTenantModal } from "./create-tenant-modal";
 
 export default function SuperadminTenantsPage() {
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const fetchTenants = async () => {
     try {
@@ -71,7 +73,17 @@ export default function SuperadminTenantsPage() {
             Approve new signups and manage existing workspaces
           </p>
         </div>
+        <Button onClick={() => setIsCreateModalOpen(true)} className="bg-rose-600 text-white font-black rounded-2xl h-12 px-6 shadow-xl shadow-rose-600/20 gap-2">
+          <Building2 className="h-4 w-4" /> Create New Tenant
+        </Button>
       </div>
+
+      {/* Create Tenant Modal */}
+      <CreateTenantModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        onSuccess={fetchTenants} 
+      />
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">

@@ -8,6 +8,7 @@ import {
   Loader2, BarChart3, Globe, Mail
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { adminService } from "@/services/api.service";
 import { toast } from "sonner";
 

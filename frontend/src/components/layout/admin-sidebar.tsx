@@ -56,12 +56,12 @@ export function AdminSidebar() {
 
       <div className="mt-auto p-4 border-t border-border/50 space-y-2">
         <Link href="/inbox">
-          <Button variant="outline" className="w-full justify-start rounded-xl gap-2 font-bold text-xs">
-            <LayoutDashboard className="h-3.5 w-3.5" /> Back to Dashboard
+          <Button variant="outline" className="w-full justify-start rounded-xl gap-2 font-bold text-[10px] uppercase tracking-wider">
+            <LayoutDashboard className="h-3.5 w-3.5" /> Switch to Workspace
           </Button>
         </Link>
-        <Button variant="ghost" className="w-full justify-start rounded-xl gap-2 font-bold text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10">
-          <LogOut className="h-3.5 w-3.5" /> Logout
+        <Button onClick={() => logout()} variant="ghost" className="w-full justify-start rounded-xl gap-2 font-bold text-[10px] uppercase tracking-wider text-rose-500 hover:text-rose-600 hover:bg-rose-500/10">
+          <LogOut className="h-3.5 w-3.5" /> Platform Logout
         </Button>
       </div>
     </div>

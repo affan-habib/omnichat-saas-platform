@@ -103,6 +103,7 @@ export const connectorService = {
 export const adminService = {
   getOverview: () => api.get('/admin/overview'),
   listTenants: () => api.get('/admin/tenants'),
+  createTenant: (data: any) => api.post('/admin/tenants', data),
   updateTenantStatus: (id: string, status: string) => api.put(`/admin/tenants/${id}/status`, { status }),
   getLogs: () => api.get('/admin/logs'),
 };
