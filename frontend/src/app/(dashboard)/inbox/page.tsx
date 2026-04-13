@@ -74,6 +74,7 @@ export default function InboxPage() {
 
   const isAdmin = role === 'admin' || role === 'owner';
   const isAgent = role === 'agent';
+  const selectedChat = convs.find(c => c.id === selectedId);
 
   // Fetch all available tags
   const fetchAllTags = async () => {
@@ -162,7 +163,7 @@ export default function InboxPage() {
     };
   }, [selectedId]);
 
-  const selectedChat = convs.find(c => c.id === selectedId);
+
 
   // Fetch history for selected contact
   useEffect(() => {
